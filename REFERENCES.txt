@@ -1,0 +1,6 @@
+Example code for glfw taken from http://www.glfw.org/docs/latest/quick.html#quick_example
+
+The 4D Bresenham Algorithm from: https://sites.google.com/site/proyectosroboticos/bresenham-6d
+-- Ported to C++ and GLSL by me (also cleaned up a bunch)
+
+4d projection math from http://steve.hollasch.net/thesis/chapter4.html
