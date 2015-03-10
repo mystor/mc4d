@@ -56,6 +56,3 @@ mat4 calcProjMat3D(float viewAngle, float aspectRatio) {
 
   return projection * view;
 }
-
-
-#endif // defined(__project_h)

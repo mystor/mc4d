@@ -15,11 +15,11 @@ uniform float recipTanViewAngle;
 uniform mat4 projMat3D;
 
 // Where are we looking (should be perpendicular)
-uniform vec4 forward;
+/* uniform vec4 forward;
 uniform vec4 up;
 uniform vec4 over;
 
-uniform float viewAngle;
+uniform float viewAngle; */
 
 // This is the location
 // out vec2 screenPos;

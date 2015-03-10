@@ -13,6 +13,12 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
+#define GL_ERR_HACK_1(x) #x
+#define GL_ERR_HACK_2(x) GL_ERR_HACK_1(x)
+#define GL_ERR_HACK __FILE__ ":" GL_ERR_HACK_2(__LINE__)
+
+#define glErrChkQ() glErrChk(GL_ERR_HACK)
+
 static inline void glErrChk(const char *where = "") {
   const char *errStr;
   GLenum errCode = glGetError();

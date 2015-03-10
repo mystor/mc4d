@@ -10,7 +10,7 @@
 using namespace glm;
 
 // zero-out the faces array at program start
-vec4 Tesseract::faces[Tesseract::FACE_COUNT * 4] = {};
+vec4 Tesseract::faces[Tesseract::FACE_COUNT * Tesseract::FACE_SIZE] = {};
 
 // TODO(michael): This should actually probably make some effort to standardize the normals...
 static void mk4DFace(vec4 fixed, vec4 free1, vec4 free2, vec4 *face) {
@@ -83,19 +83,18 @@ void Tesseract::gen() {
                 << ")\n";
     }
   }
+}
 
-  // Create the VAO
+void Tesseract::withOffset(glm::vec4 offset, glm::vec4 *out) {
+  for (size_t face=0; face<FACE_COUNT; face++) {
+    // First triangle
+    out[face * 4 + 0] = faces[face * 4 + 0] + offset;
+    out[face * 4 + 1] = faces[face * 4 + 1] + offset;
+    out[face * 4 + 2] = faces[face * 4 + 2] + offset;
 
-  GLuint VAO, VBO;
-
-  /* int numExtensions;
-  glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
-
-  for (int i=0; i<numExtensions; i++) {
-    std::cout << glGetStringi(GL_EXTENSIONS, i) << std::endl;
+    // Second Triangle
+    out[face * 4 + 3] = faces[face * 4 + 1] + offset;
+    out[face * 4 + 4] = faces[face * 4 + 2] + offset;
+    out[face * 4 + 5] = faces[face * 4 + 3] + offset;
   }
-  std::cout << glGenVertexArrays << std::endl;
-
-  glGenVertexArrays(1, &VAO);
-  glBindVertexArray(VAO); */
 }

@@ -1,14 +1,16 @@
 #include "controls.h"
-// #include "tesseract.h"
+#include "tesseract.h"
 #include "config.h"
 #include "gpuProgram.h"
-// #include "noise.h"
 #include "world.h"
+#include "project.h"
 
 #include "fragShader.h"
 #include "vertShader.h"
 
 #include "gl.h"
+
+#include <glm/gtc/type_ptr.hpp>
 
 #include <stdlib.h>
 #include <iostream>
@@ -67,12 +69,11 @@ int main(int argc, char **argv)
 
   // View view = View();
 
-  World world = World();
+  // Before we can create the world, we need to initialize the tesseract
+  Tesseract::gen();
 
-#if 1
-  // Early exit to avoid actually doing anything
-  return 0;
-#endif
+  // The world is heap allocated because otherwise it will blow out the stack
+  std::unique_ptr<World> world(new World());
 
   glErrChk("Before GP");
   // Create an initialize the GPU program which does basically all
@@ -81,6 +82,10 @@ int main(int argc, char **argv)
   gp.init(vertGlsl, fragGlsl);
   gp.activate();
   glErrChk("After GPUProgram");
+
+  GLint maxTextureBufferSize;
+  glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, &maxTextureBufferSize);
+  std::cout << maxTextureBufferSize << std::endl;
 
   /* glActiveTexture(GL_TEXTURE0);
   NoiseTexture worldTex(0); // TODO(michael): Find a good seed
@@ -107,13 +112,51 @@ int main(int argc, char **argv)
   glUniform3f(upLoc, 0, 1, 0);
   glUniform3f(rightLoc, 0, 0, 1); */
 
+  glm::vec4 up(0, 1, 0, 0);
+  glm::vec4 over(0, 0, 1, 0);
+  glm::vec4 forward(1, 0, 0, 0);
+  float viewAngle = 45;
+  glm::vec4 eye(-5, 13, 5, 5);
+
+  GLuint worldToEyeMat4DLoc = glGetUniformLocation(gp.program_id, "worldToEyeMat4D");
+  GLuint recipTanViewAngleLoc = glGetUniformLocation(gp.program_id, "recipTanViewAngle");
+  GLuint projMat3DLoc = glGetUniformLocation(gp.program_id, "projMat3D");
+  GLuint eyeLoc = glGetUniformLocation(gp.program_id, "eye");
+  // GLuint forwardLoc = glGetUniformLocation(gp.program_id, "forward");
+
   // Main loop
   while (!glfwWindowShouldClose(window)) {
+    float ratio;
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    ratio = width / (float) height;
+
     // TODO(michael): Is this necessary?
     glClearColor( 0.0, 0.0, 1.0, 1.0 );
     glClear( GL_COLOR_BUFFER_BIT );
 
+    glm::mat4 worldToEyeMat4D = calcWorldToEyeMat4D(up, over, forward);
+    float invTanViewAngle = calcInvTanViewAngle(viewAngle);
+
+    // Value required for the 3D->2D projection
+    glm::mat4 projMat3D = calcProjMat3D(viewAngle, ratio);
+
+    glErrChk("Pre Uniform Update");
+
+    glUniform4fv(eyeLoc, 1, glm::value_ptr(eye));
+    glErrChkQ();
+    glUniform1f(recipTanViewAngleLoc, invTanViewAngle);
+
+    glErrChkQ();
+    glUniformMatrix4fv(worldToEyeMat4DLoc, 1, GL_FALSE, glm::value_ptr(worldToEyeMat4D));
+
+    glErrChkQ();
+    glUniformMatrix4fv(projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D));
+
+    glErrChk("Post Uniform Update");
+
     // Draw the view
+    world->draw();
     // view.draw();
 
     glfwSwapBuffers(window);
