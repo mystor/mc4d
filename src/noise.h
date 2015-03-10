@@ -9,19 +9,12 @@
 #ifndef __noise_h
 #define __noise_h
 
-#include "gl.h"
+#include <glm/glm.hpp>
 
-#define NOISE_WIDTH 16
-#define NOISE_HEIGHT 16
-#define NOISE_DEPTH 16
+// This has to be called first!
+void initPerm();
 
-struct NoiseTexture {
-  float data[NOISE_WIDTH * NOISE_HEIGHT * NOISE_DEPTH];
-  GLuint texId;
-
-  NoiseTexture(uint32_t seed);
-
-  void bindToUniform(GLuint sampler, GLuint programId, const char *uniformName);
-};
+double simplexNoise4D(double x, double y, double z, double w);
+double simplexNoise4D(glm::dvec4 pos);
 
 #endif // defined(__noise_h)
