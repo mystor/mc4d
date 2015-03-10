@@ -15,15 +15,69 @@
 
 using namespace glm;
 
+// This is a really simple FPS thing from http://r3dux.org/2012/07/a-simple-glfw-fps-counter/
+double calcFPS(double theTimeInterval = 1.0) {
+  // Static values which only get initialised the first time the function runs
+  static double t0Value       = glfwGetTime(); // Set the initial time to now
+  static int    fpsFrameCount = 0;             // Set the initial FPS frame count to 0
+  static double fps           = 0.0;           // Set the initial FPS value to 0.0
+
+  // Get the current time in seconds since the program started (non-static, so executed every time)
+  double currentTime = glfwGetTime();
+
+  // Ensure the time interval between FPS checks is sane (low cap = 0.1s, high-cap = 10.0s)
+  // Negative numbers are invalid, 10 fps checks per second at most, 1 every 10 secs at least.
+  if (theTimeInterval < 0.1)
+    {
+      theTimeInterval = 0.1;
+    }
+  if (theTimeInterval > 10.0)
+    {
+      theTimeInterval = 10.0;
+    }
+
+  // Calculate and display the FPS every specified time interval
+  if ((currentTime - t0Value) > theTimeInterval)
+    {
+      // Calculate the FPS as the number of frames divided by the interval in seconds
+      fps = (double)fpsFrameCount / (currentTime - t0Value);
+
+      std::cout << "FPS: " << fps << std::endl;
+
+      // Reset the FPS frame counter and set the initial time to be now
+      fpsFrameCount = 0;
+      t0Value = glfwGetTime();
+    }
+  else // FPS calculation time interval hasn't elapsed yet? Simply increment the FPS frame counter
+    {
+      fpsFrameCount++;
+    }
+
+  // Return the current FPS - doesn't have to be used if you don't want it!
+  return fps;
+}
+
+
+
 #define dumpVec4(v4) std::cout << v4.x << ", "\
   << v4.y << ", "\
   << v4.z << ", "\
   << v4.w << "\n";
 
+// This code will be ported to glsl, but I'm verifying that the algo works correctly in
+// c++ first
+
+static uint32_t count = 0;
+bool gridIntersectPointHandler(ivec4 cell) {
+  count++;
+  if (count > 10) return true;
+  dumpVec4(cell);
+  return false;
+}
+
 // Fills path with count cells in 4d space which are touched by the vector starting
 // at start and passing in the direction dir
-// Based on http://stackoverflow.com/questions/11694886/traverse-a-2-5d-grid
-void gridIntersectPoints(vec4 start, vec4 dir, ivec4 *path, size_t count) {
+void gridIntersectPoints(vec4 start, vec4 dir) {
   ivec4 dirSigns(dir.x < 0 ? -1 : 1,
                  dir.y < 0 ? -1 : 1,
                  dir.z < 0 ? -1 : 1,
@@ -31,10 +85,11 @@ void gridIntersectPoints(vec4 start, vec4 dir, ivec4 *path, size_t count) {
 
   vec4 pos = start;
 
-  while (count--) {
+  while (true) {
     // Get the current cell
     ivec4 posInt(pos);
-    *path++ = posInt;
+    if (gridIntersectPointHandler(posInt))
+      break;
 
     // The value gotten by moving to one block further in each dimension
     vec4 targets = posInt + dirSigns;
@@ -55,77 +110,62 @@ void gridIntersectPoints(vec4 start, vec4 dir, ivec4 *path, size_t count) {
     pos += minDeltaInDirs * dir;
   }
 
+}
 
+bool gipHandler(vec4 pt, vec4 norm)
+{
+  std::cout << "gipHandler: ";
+  dumpVec4(pt);
+  dumpVec4(norm);
+  std::cout << std::endl;
+  return false;
+}
 
-  /* float maxDir = max(max(dir.x, dir.y),
-                     max(dir.z, dir.w));
-
-  vec4 sdir = dir/maxDir;
-  dumpVec4(dir);
+void gip(vec4 start, vec4 dir)
+{
+  // TODO(michael):
+  // This is being used instead of sign() because sign(0) = 0, which means that
+  // we could get a NaN for a deltaInDirs argument, which will totally bugger everything up
+  vec4 dirSigns = vec4(dir.x < 0 ? -1 : 1,
+                       dir.y < 0 ? -1 : 1,
+                       dir.z < 0 ? -1 : 1,
+                       dir.w < 0 ? -1 : 1);
+  // vec4 dirSigns = sign(dir);
 
   vec4 pos = start;
 
-  while (count--) {
-    *path++ = pos;
-    pos += sdir;
-    } */
+  int remaining = 10;
+  while (remaining-- > 0) { // Clamp the max # of things to look up (max view distance)
+    vec4 posInt = floor(pos); // Round the coordinate down to the closest block
+    /* if (gipHandler(posInt)) { // Check if the block should count as a hit
+      break;
+      } */
 
-  /* const float gridResolution = 1;
+    // The value gotten by moving to one block further in each dimension
+    vec4 targets = posInt + dirSigns;
+    // The distance which must be traveled in each direction to get this
+    vec4 deltas = targets - pos;
+    // How many times dir must be traveled to cover this distance
+    vec4 deltaInDirs = deltas / dir;
 
-  dir = normalize(dir);
+    // TODO(michael): Make this less terrible
+    // Choose the smallest one
+    float minDeltaInDirs = min(min(deltaInDirs.x, deltaInDirs.y),
+                               min(deltaInDirs.z, deltaInDirs.w));
 
-  dumpVec4(dir)
+    // A small fudge to make sure that the next block is actually entred
+    // in case floating point errors cause the same block to be tested repeatedly
+    // minDeltaInDirs += 1.0/16.0;
 
-  vec4 delta(gridResolution/fabs(dir.x),
-             gridResolution/fabs(dir.y),
-             gridResolution/fabs(dir.z),
-             gridResolution/fabs(dir.w));
+    // Move along minDeltaInDirs!
+    pos += minDeltaInDirs * dir;
 
-  dumpVec4(delta);
-
-  // Truncate and scale
-  ivec4 startGrid = start / gridResolution;
-  ivec4 currentGrid = startGrid;
-
-  dumpVec4(currentGrid);
-
-  // The step amount
-  ivec4 step(dir.x<0 ? -1 : 1,
-             dir.y<0 ? -1 : 1,
-             dir.z<0 ? -1 : 1,
-             dir.w<0 ? -1 : 1);
-
-  // TODO(michael): What?
-  vec4 cd(((step.x>0?start.x:start.x+1)*gridResolution-start.x)/dir.x,
-          ((step.y>0?start.y:start.y+1)*gridResolution-start.y)/dir.y,
-          ((step.z>0?start.z:start.z+1)*gridResolution-start.z)/dir.z,
-          ((step.w>0?start.w:start.w+1)*gridResolution-start.w)/dir.w);
-
-  std::cout << (step.z>0?start.z:start.z+1)*gridResolution-start.z;
-
-  std::cout << cd.x << ", "
-            << cd.y << ", "
-            << cd.z << ", "
-            << cd.w << "\n";
-
-  while (count--) {
-    *path = currentGrid;
-    path++;
-
-    if (cd.x < cd.y && cd.x < cd.z && cd.x < cd.w) {
-      cd.x += delta.x;
-      currentGrid.x += step.x;
-    } else if (cd.y < cd.z && cd.y < cd.w) {
-      cd.y += delta.y;
-      currentGrid.y += step.y;
-    } else if (cd.z < cd.w) {
-      cd.z += delta.z;
-      currentGrid.z += step.z;
-    } else {
-      cd.w += delta.w;
-      currentGrid.w += step.w;
+    vec4 newPosInt = floor(pos); // Round the coordinate down to the closest block
+    vec4 normal = newPosInt - posInt;
+    if (gipHandler(newPosInt, normal)) { // Check if the block should count as a hit
+      break;
     }
-    } */
+  }
 }
 
 struct View {
@@ -230,58 +270,32 @@ int main(int argc, char **argv)
   GPUProgram gp;
   gp.init(vertGlsl, fragGlsl);
   gp.activate();
-
   glErrChk("After GPUProgram");
 
   glActiveTexture(GL_TEXTURE0);
   NoiseTexture worldTex(0); // TODO(michael): Find a good seed
   glErrChk("BeforeBInd");
 
-  for (size_t i=0; i<sizeof(worldTex.data)/sizeof(worldTex.data[0]); i++) {
-    std::cout << worldTex.data[i] << std::endl;
-  }
-
-  std::cout << worldTex.texId;
-  // GLuint worldLoc = glGetUniformLocation(gp.program_id, "world");
-  // glBindSampler(0, worldTex.texId);
-
   worldTex.bindToUniform(0, gp.program_id, "world");
-
   glErrChk("After WorldTex");
-
 
   // ___ TEST___
   std::cout << "HERE\n";
-  ivec4 gips[10];
-  gridIntersectPoints(vec4(0,0,0,0), vec4(0.5,1,0,0), gips, 10);
-  for (size_t i=0; i<10; i++) {
-    std::cout << gips[i].x << ", "
-              << gips[i].y << ", "
-              << gips[i].z << ", "
-              << gips[i].w << "\n";
-  }
+  // gridIntersectPoints(vec4(0,0,0,0), vec4(0.5,1,0,0));
+  gip(vec4(0,0,0,0), vec4(-0.4,0.3,0,0));
   std::cout << "THERE\n";
 
-  /* GLuint worldLoc = glGetUniformLocation(gp.program_id, "world");
+  // Set the eye, forward, up, and right vectors
+  GLuint eyeLoc = glGetUniformLocation(gp.program_id, "eye");
+  GLuint forwardLoc = glGetUniformLocation(gp.program_id, "forward");
+  GLuint upLoc = glGetUniformLocation(gp.program_id, "up");
+  GLuint rightLoc = glGetUniformLocation(gp.program_id, "right");
 
-  // Create the world texture (janky!)
-  GLuint texId;
-  float world[] = {1};
-  glActiveTexture(GL_TEXTURE0);
-  glGenTextures(1, &texId);
-  glBindTexture(GL_TEXTURE_3D, texId);
-  glTexImage3D(GL_TEXTURE_3D,
-               0,
-               GL_RED, // Only set the red component
-               1,1,1, // Dimensions
-               0,
-               GL_RED,
-               GL_FLOAT,
-               world);
-
-  // Connect the two together
-  glBindSampler(0, texId);
-  glUniform1i(worldLoc, 0); */
+  // These are the defaults for right now
+  glUniform3f(eyeLoc, 64, 32, 0);
+  glUniform3f(forwardLoc, 1, 0, 0);
+  glUniform3f(upLoc, 0, 1, 0);
+  glUniform3f(rightLoc, 0, 0, 1);
 
   // Main loop
   while (!glfwWindowShouldClose(window)) {
@@ -296,6 +310,7 @@ int main(int argc, char **argv)
     glfwPollEvents();
 
     glErrChk("Main Loop");
+    calcFPS();
   }
 
   // Exit the program
