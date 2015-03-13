@@ -14,63 +14,13 @@ uniform float recipTanViewAngle;
 // The 3d projection matrix
 uniform mat4 projMat3D;
 
-// Where are we looking (should be perpendicular)
-/* uniform vec4 forward;
-uniform vec4 up;
-uniform vec4 over;
-
-uniform float viewAngle; */
-
-// This is the location
-// out vec2 screenPos;
-
-// This implementation of cross4 is taken directly from Steve Hollasch's thesis:
-// =*= http://steve.hollasch.net/thesis/chapter2.html =*=
-// There may be a faster way to do it on the GPU, but it works
-//
-// TODO(michael): Is this necessary to have on the GPU?
-// vec4 cross4(vec4 a, vec4 b, vec4 c) {
-//   float A, B, C, D, E, F;       // Intermediate Values
-//
-//   // Calculate intermediate values.
-//   A = (V.x * W.y) - (V.y * W.x);
-//   B = (V.x * W.z) - (V.z * W.x);
-//   C = (V.x * W.w) - (V.w * W.x);
-//   D = (V.y * W.z) - (V.z * W.y);
-//   E = (V.y * W.w) - (V.w * W.y);
-//   F = (V.z * W.w) - (V.w * W.z);
-//
-//   // Calculate the result-vector components.
-//   return vec4(+ (U.y * F) - (U.z * E) + (U.w * D),
-//               - (U.x * F) + (U.z * C) - (U.w * B),
-//               + (U.x * E) - (U.y * C) + (U.w * A),
-//               - (U.x * D) + (U.y * B) - (U.z * A));
-// }
-
-/* mat4 calcWorldToEyeMatrix() {
-  vec4 Wa, Wb, Wc, Wd;
-
-  Wd = normalize(dir);
-
-  // Calculate the normalized Wa column-vector.
-  Wa = normalize(cross4(Up, Over, Wd));
-
-  // Calculate the normalized Wb column-vector.
-  Wb = normalize(cross4(Over, Wd, Wa));
-
-  // Calculate the Wc column-vector.
-  Wc = normalize(cross4(Wd, Wa, Wb));
-
-  return mat4(Wa, Wb, Wc, Wd);
-}
-
-float calcInvTanViewAngle() {
-} */
+// Scene rotation matrix
+uniform mat4 srm;
 
 // This function accepts some pre-computed values which will help speed stuff up
 vec4 projectTo3D()
 {
-  vec4 eyePos = position - eye;
+  vec4 eyePos = (srm * position) - eye;
 
   float scale = recipTanViewAngle / dot(eyePos, worldToEyeMat4D[3]);
 

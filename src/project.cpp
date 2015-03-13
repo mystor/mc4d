@@ -50,7 +50,7 @@ mat4 calcProjMat3D(float viewAngle, float aspectRatio) {
                                 0.1f,
                                 100.0f);
 
-  mat4 view = lookAt(vec3(-1, 0, 0),
+  mat4 view = lookAt(vec3(3, 0.99, 1.82),
                      vec3(0, 0, 0),
                      vec3(0, 1, 0));
 

@@ -62,102 +62,176 @@ int main(int argc, char **argv)
     std::cerr << "Error: " << glewGetErrorString(glewError) << std::endl;
     exit(EXIT_FAILURE);
   }
-
-  glErrChk("GLEW_ERROR");
-
-  // glEnable(GL_TEXTURE_3D); glErrChk("Texture_3D check");
+  glErrChk("GLEW_ERROR (OK)");
 
   // View view = View();
 
   // Before we can create the world, we need to initialize the tesseract
   Tesseract::gen();
+  GL_ERR_CHK;
 
   // The world is heap allocated because otherwise it will blow out the stack
-  std::unique_ptr<World> world(new World());
+  // std::unique_ptr<World> world(new World());
 
-  glErrChk("Before GP");
+  // --- TEST --- TESSERACT x1 ---
+#define TESSERACT_LINES
+#ifdef TESSERACT_LINES
+  glm::vec4 verts[Tesseract::LINES_SIZE * 3];
+  Tesseract::linesWithOffset(glm::vec4(0,0,0,0), verts);
+  Tesseract::linesWithOffset(glm::vec4(0,0,1,0), verts + Tesseract::LINES_SIZE);
+  Tesseract::linesWithOffset(glm::vec4(0,0,-1,0), verts + Tesseract::LINES_SIZE * 2);
+
+  GLuint VAO, VBO;
+  glGenVertexArrays(1, &VAO);
+  glBindVertexArray(VAO);
+
+  // Create & Bind the VBO
+  glGenBuffers(1, &VBO);
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+  // Load the data
+  glBufferData(GL_ARRAY_BUFFER,
+               sizeof(verts),
+               verts,
+               GL_STATIC_DRAW);
+
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+  GL_ERR_CHK;
+#else // TRIS
+  glm::vec4 verts[Tesseract::OUT_SIZE * 3];
+  Tesseract::withOffset(glm::vec4(0,0,0,0), verts);
+  Tesseract::withOffset(glm::vec4(0,0,1,0), verts + Tesseract::OUT_SIZE);
+  Tesseract::withOffset(glm::vec4(0,0,-1,0), verts + Tesseract::OUT_SIZE * 2);
+
+  GLuint VAO, VBO;
+  glGenVertexArrays(1, &VAO);
+  glBindVertexArray(VAO);
+
+  // Create & Bind the VBO
+  glGenBuffers(1, &VBO);
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+  // Load the data
+  glBufferData(GL_ARRAY_BUFFER,
+               sizeof(verts),
+               verts,
+               GL_STATIC_DRAW);
+
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+  GL_ERR_CHK;
+#endif
+
+  // -- END TEST --
+
   // Create an initialize the GPU program which does basically all
   // of the actual rendering for the program
   GPUProgram gp;
   gp.init(vertGlsl, fragGlsl);
   gp.activate();
-  glErrChk("After GPUProgram");
+  GL_ERR_CHK;
 
+#if 0 // Print max texture buffer sizes
   GLint maxTextureBufferSize;
   glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, &maxTextureBufferSize);
   std::cout << maxTextureBufferSize << std::endl;
+#endif
 
-  /* glActiveTexture(GL_TEXTURE0);
-  NoiseTexture worldTex(0); // TODO(michael): Find a good seed
-  glErrChk("BeforeBInd");
-
-  worldTex.bindToUniform(0, gp.program_id, "world");
-  glErrChk("After WorldTex"); */
-
-
-
-
-
-
-
-  // Set the eye, forward, up, and right vectors
-  /* GLuint eyeLoc = glGetUniformLocation(gp.program_id, "eye");
-  GLuint forwardLoc = glGetUniformLocation(gp.program_id, "forward");
-  GLuint upLoc = glGetUniformLocation(gp.program_id, "up");
-  GLuint rightLoc = glGetUniformLocation(gp.program_id, "right");
-
-  // These are the defaults for right now
-  glUniform3f(eyeLoc, 64, 32, 0);
-  glUniform3f(forwardLoc, 1, 0, 0);
-  glUniform3f(upLoc, 0, 1, 0);
-  glUniform3f(rightLoc, 0, 0, 1); */
-
+  // The current state of the program
+#if 0
   glm::vec4 up(0, 1, 0, 0);
   glm::vec4 over(0, 0, 1, 0);
-  glm::vec4 forward(1, 0, 0, 0);
+  glm::vec4 forward(-1, 0, 0, 0);
   float viewAngle = 45;
-  glm::vec4 eye(-5, 13, 5, 5);
+  glm::vec4 eye(4, 0, 0, 0);
+#endif
 
+  glm::vec4 up(-.71, .71, 0, 0);
+  glm::vec4 over(0, 0, 1, 0.02);
+  glm::vec4 forward = normalize(glm::vec4(-2.83, -2.83, -0.01, 0));
+  float viewAngle = 45;
+  glm::vec4 eye(2.83, 2.83, 0.01, 0);
+
+  glm::mat4 srm;
+
+  // Get the location of the uniforms on the GPU
   GLuint worldToEyeMat4DLoc = glGetUniformLocation(gp.program_id, "worldToEyeMat4D");
   GLuint recipTanViewAngleLoc = glGetUniformLocation(gp.program_id, "recipTanViewAngle");
   GLuint projMat3DLoc = glGetUniformLocation(gp.program_id, "projMat3D");
   GLuint eyeLoc = glGetUniformLocation(gp.program_id, "eye");
-  // GLuint forwardLoc = glGetUniformLocation(gp.program_id, "forward");
+
+  GLuint srmLoc = glGetUniformLocation(gp.program_id, "srm");
 
   // Main loop
+  double lastTime, thisTime, delta;
+  lastTime = glfwGetTime();
   while (!glfwWindowShouldClose(window)) {
+    // Calculate the time delta
+    thisTime = glfwGetTime();
+    delta = thisTime - lastTime;
+    lastTime = thisTime;
+
+    /* Get the screen aspect ratio */
     float ratio;
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
     ratio = width / (float) height;
 
-    // TODO(michael): Is this necessary?
-    glClearColor( 0.0, 0.0, 1.0, 1.0 );
+    // float R = M_PI * delta;
+    // glm::mat4 rotMat(cosf(R), -sinf(R), 0, 0,
+    // sinf(R), cosf(R), 0, 0,
+    // 0, 0, 1, 0,
+    // 0, 0, 0, 1);
+
+    // eye *= R; // Rotate the eye
+    // forward = normalize(-eye); // Look toward (0, 0, 0, 0)
+
+    // Clear the color for the background
+    glClearColor( 1.0, 0.0, 1.0, 1.0 );
     glClear( GL_COLOR_BUFFER_BIT );
 
+    // Calculate projecton stuff
     glm::mat4 worldToEyeMat4D = calcWorldToEyeMat4D(up, over, forward);
     float invTanViewAngle = calcInvTanViewAngle(viewAngle);
 
     // Value required for the 3D->2D projection
     glm::mat4 projMat3D = calcProjMat3D(viewAngle, ratio);
 
-    glErrChk("Pre Uniform Update");
+    // SRM
+    float R = thisTime;
+#if 0
+    glm::mat4 srm = glm::mat4(cosf(R), -sinf(R), 0, 0,
+                              sinf(R), cosf(R), 0, 0,
+                              0, 0, 1, 0,
+                              0, 0, 0, 1);
+#endif
+    glm::mat4 srm = glm::mat4(cosf(R), 0, 0, -sinf(R),
+                              0, 1, 0, 0,
+                              0, 0, 1, 0,
+                              sinf(R), 0, 0, cosf(R));
 
-    glUniform4fv(eyeLoc, 1, glm::value_ptr(eye));
-    glErrChkQ();
-    glUniform1f(recipTanViewAngleLoc, invTanViewAngle);
+    // Sending data to the GPU
+    glUniform4fv(eyeLoc, 1, glm::value_ptr(eye)); GL_ERR_CHK;
+    glUniform1f(recipTanViewAngleLoc, invTanViewAngle); GL_ERR_CHK;
+    glUniformMatrix4fv(worldToEyeMat4DLoc, 1, GL_FALSE, glm::value_ptr(worldToEyeMat4D)); GL_ERR_CHK;
+    glUniformMatrix4fv(projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D)); GL_ERR_CHK;
 
-    glErrChkQ();
-    glUniformMatrix4fv(worldToEyeMat4DLoc, 1, GL_FALSE, glm::value_ptr(worldToEyeMat4D));
+    // Scene Rotation Matrix (for basic visualization purposes)
+    glUniformMatrix4fv(srmLoc, 1, GL_FALSE, glm::value_ptr(srm)); GL_ERR_CHK;
 
-    glErrChkQ();
-    glUniformMatrix4fv(projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D));
+    // Draw the tesseract
+    glBindVertexArray(VAO);
 
-    glErrChk("Post Uniform Update");
+    // Draw the tesseracts!
+#ifdef TESSERACT_LINES
+    glDrawArrays(GL_LINES, 0, sizeof(verts)/sizeof(verts[0]));
+#else
+    glDrawArrays(GL_TRIANGLES, 0, sizeof(verts)/sizeof(verts[0]));
+#endif
+    GL_ERR_CHK;
 
-    // Draw the view
-    world->draw();
-    // view.draw();
+    // world->draw();
 
     glfwSwapBuffers(window);
     glfwPollEvents();

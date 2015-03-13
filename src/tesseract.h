@@ -25,6 +25,9 @@ struct Tesseract {
 
   static const size_t OUT_SIZE = FACE_COUNT * 6;
   static void withOffset(glm::vec4 offset, glm::vec4 *out);
+
+  static const size_t LINES_SIZE = FACE_COUNT * 8;
+  static void linesWithOffset(glm::vec4 offset, glm::vec4 *out);
 };
 
 

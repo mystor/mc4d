@@ -17,7 +17,7 @@
 #define GL_ERR_HACK_2(x) GL_ERR_HACK_1(x)
 #define GL_ERR_HACK __FILE__ ":" GL_ERR_HACK_2(__LINE__)
 
-#define glErrChkQ() glErrChk(GL_ERR_HACK)
+#define GL_ERR_CHK glErrChk(GL_ERR_HACK)
 
 static inline void glErrChk(const char *where = "") {
   const char *errStr;
