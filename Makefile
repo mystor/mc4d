@@ -8,14 +8,28 @@ FILES=src/main.o src/tesseract.o src/controls.o src/more.o src/config.o src/gpup
 mc4d: $(FILES)
 	$(CXX) $(CXXFLAGS) $(FILES) -o mc4d $(LDFLAGS)
 
+# Pull in generated dependency information for existing .o files
+-include $(FILES:.o=.d)
+
+# Modify the default c++ compiler rule to generate dependency info too
+%.o: %.cpp
+	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) $*.cpp -o $*.o
+	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) $*.cpp > $*.d
+
+# Destroy everything we can generate
 .PHONY: clean
 clean:
 	rm src/*.o
+	rm src/*.d
+	rm src/*Shader.h
+	rm mc4d
 
+# Run the project
 .PHONY: run
 run: mc4d
 	./mc4d
 
+# Special generation rules for shaders to embed in program
 src/vertShader.h: src/vert.glsl
 	echo "char vertGlsl[] = {" > src/vertShader.h
 	xxd -i < src/vert.glsl >> src/vertShader.h
@@ -26,12 +40,6 @@ src/fragShader.h: src/frag.glsl
 	xxd -i < src/frag.glsl >> src/fragShader.h
 	echo ", 0x00\n};" >> src/fragShader.h
 
-src/main.o: src/tesseract.h src/controls.h src/config.h src/gpuprogram.h src/vertShader.h src/fragShader.h src/noise.h src/gl.h src/world.h src/project.h
-src/tesseract.o: src/tesseract.h src/more.h src/config.h src/gl.h
-src/controls.o: src/controls.h src/gl.h
-src/more.o: src/more.h src/gl.h
-src/config.o: src/config.h src/gl.h
-src/gpuprogram.o: src/gpuprogram.h src/gl.h
-src/noise.o: src/noise.h src/gl.h
-src/world.o: src/world.h src/gl.h src/tesseract.h
-src/project.o: src/project.h
+# Ensure that the shader headers have been built before the main program is compiled
+# Unfortunately, -MM assumes that the header files aren't generated
+src/main.o: src/vertShader.h src/fragShader.h
