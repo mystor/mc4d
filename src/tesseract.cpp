@@ -24,7 +24,8 @@ static void mk4DFace(vec4 fixed, vec4 free1, vec4 free2, vec4 *face) {
 }
 
 void Tesseract::gen() {
-  // These are some constant vectors in each of the directions which will make writing the gen code easier
+  // These are some constant vectors in each of the directions which will
+  // make writing the gen code easier
   const vec4 ux(1, 0, 0, 0);
   const vec4 uy(0, 1, 0, 0);
   const vec4 uz(0, 0, 1, 0);

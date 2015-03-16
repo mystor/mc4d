@@ -40,6 +40,11 @@ src/fragShader.h: src/frag.glsl
 	xxd -i < src/frag.glsl >> src/fragShader.h
 	echo ", 0x00\n};" >> src/fragShader.h
 
+src/geomShader.h: src/geom.glsl
+	echo "char geomGlsl[] = {" > src/geomShader.h
+	xxd -i < src/geom.glsl >> src/geomShader.h
+	echo ", 0x00\n};" >> src/geomShader.h
+
 # Ensure that the shader headers have been built before the main program is compiled
-# Unfortunately, -MM assumes that the header files aren't generated
-src/main.o: src/vertShader.h src/fragShader.h
+# If we don't do this, then after cleaning the shaders won't exist and building will fail
+src/main.o: src/vertShader.h src/fragShader.h src/geomShader.h

@@ -7,6 +7,7 @@
 
 #include "fragShader.h"
 #include "vertShader.h"
+#include "geomShader.h"
 
 #include "gl.h"
 
@@ -74,12 +75,16 @@ int main(int argc, char **argv)
   // std::unique_ptr<World> world(new World());
 
   // --- TEST --- TESSERACT x1 ---
-#define TESSERACT_LINES
+  // #define TESSERACT_LINES
 #ifdef TESSERACT_LINES
-  glm::vec4 verts[Tesseract::LINES_SIZE * 3];
+  glm::vec4 verts[Tesseract::LINES_SIZE * 7];
   Tesseract::linesWithOffset(glm::vec4(0,0,0,0), verts);
   Tesseract::linesWithOffset(glm::vec4(0,0,1,0), verts + Tesseract::LINES_SIZE);
   Tesseract::linesWithOffset(glm::vec4(0,0,-1,0), verts + Tesseract::LINES_SIZE * 2);
+  Tesseract::linesWithOffset(glm::vec4(1,0,0,0), verts + Tesseract::LINES_SIZE * 3);
+  Tesseract::linesWithOffset(glm::vec4(-1,0,0,0), verts + Tesseract::LINES_SIZE * 4);
+  Tesseract::linesWithOffset(glm::vec4(0,0,0,1), verts + Tesseract::LINES_SIZE * 5);
+  Tesseract::linesWithOffset(glm::vec4(0,0,0,-1), verts + Tesseract::LINES_SIZE * 6);
 
   GLuint VAO, VBO;
   glGenVertexArrays(1, &VAO);
@@ -99,10 +104,14 @@ int main(int argc, char **argv)
   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
   GL_ERR_CHK;
 #else // TRIS
-  glm::vec4 verts[Tesseract::OUT_SIZE * 3];
+  glm::vec4 verts[Tesseract::OUT_SIZE * 7];
   Tesseract::withOffset(glm::vec4(0,0,0,0), verts);
   Tesseract::withOffset(glm::vec4(0,0,1,0), verts + Tesseract::OUT_SIZE);
   Tesseract::withOffset(glm::vec4(0,0,-1,0), verts + Tesseract::OUT_SIZE * 2);
+  Tesseract::withOffset(glm::vec4(1,0,0,0), verts + Tesseract::OUT_SIZE * 3);
+  Tesseract::withOffset(glm::vec4(-1,0,0,0), verts + Tesseract::OUT_SIZE * 4);
+  Tesseract::withOffset(glm::vec4(0,0,0,1), verts + Tesseract::OUT_SIZE * 5);
+  Tesseract::withOffset(glm::vec4(0,0,0,-1), verts + Tesseract::OUT_SIZE * 6);
 
   GLuint VAO, VBO;
   glGenVertexArrays(1, &VAO);
@@ -127,9 +136,12 @@ int main(int argc, char **argv)
 
   // Create an initialize the GPU program which does basically all
   // of the actual rendering for the program
-  GPUProgram gp;
-  gp.init(vertGlsl, fragGlsl);
-  gp.activate();
+  ShaderProgram mainShader;
+  mainShader.createShader(GL_VERTEX_SHADER, vertGlsl);
+  mainShader.createShader(GL_FRAGMENT_SHADER, fragGlsl);
+  mainShader.createShader(GL_GEOMETRY_SHADER, geomGlsl);
+  mainShader.link();
+  mainShader.activate();
   GL_ERR_CHK;
 
 #if 0 // Print max texture buffer sizes
@@ -147,21 +159,26 @@ int main(int argc, char **argv)
   glm::vec4 eye(4, 0, 0, 0);
 #endif
 
-  glm::vec4 up(-.71, .71, 0, 0);
-  glm::vec4 over(0, 0, 1, 0.02);
-  glm::vec4 forward = normalize(glm::vec4(-2.83, -2.83, -0.01, 0));
+  // glm::vec4 up(-.71, .71, 0, 0);
+  glm::vec4 up(0, 1, 0, 0);
+  glm::vec4 over(0, 0, 1, 0);
+  // glm::vec4 forward = normalize(glm::vec4(-2.83, -2.83, -0.01, 0));
+  // glm::vec4 forward = glm::vec4(1, 0, 0, 0);
   float viewAngle = 45;
-  glm::vec4 eye(2.83, 2.83, 0.01, 0);
+  // glm::vec4 eye(2.83, 2.83, 0.01, 0);
+  glm::vec4 eye(-4, 0, 0, 0);
+
+  glm::vec4 forward = normalize(-eye);
 
   glm::mat4 srm;
 
   // Get the location of the uniforms on the GPU
-  GLuint worldToEyeMat4DLoc = glGetUniformLocation(gp.program_id, "worldToEyeMat4D");
-  GLuint recipTanViewAngleLoc = glGetUniformLocation(gp.program_id, "recipTanViewAngle");
-  GLuint projMat3DLoc = glGetUniformLocation(gp.program_id, "projMat3D");
-  GLuint eyeLoc = glGetUniformLocation(gp.program_id, "eye");
+  GLuint worldToEyeMat4DLoc = mainShader.uniformLocation("worldToEyeMat4D");
+  GLuint recipTanViewAngleLoc = mainShader.uniformLocation("recipTanViewAngle");
+  GLuint projMat3DLoc = mainShader.uniformLocation("projMat3D");
+  GLuint eyeLoc = mainShader.uniformLocation("eye");
 
-  GLuint srmLoc = glGetUniformLocation(gp.program_id, "srm");
+  GLuint srmLoc = mainShader.uniformLocation("srm");
 
   // Main loop
   double lastTime, thisTime, delta;
@@ -191,6 +208,11 @@ int main(int argc, char **argv)
     glClearColor( 1.0, 0.0, 1.0, 1.0 );
     glClear( GL_COLOR_BUFFER_BIT );
 
+
+    eye.y = fmod(thisTime, 5);
+    eye.z = fmod(thisTime/2, 5);
+    forward = normalize(-eye);
+
     // Calculate projecton stuff
     glm::mat4 worldToEyeMat4D = calcWorldToEyeMat4D(up, over, forward);
     float invTanViewAngle = calcInvTanViewAngle(viewAngle);
@@ -199,6 +221,7 @@ int main(int argc, char **argv)
     glm::mat4 projMat3D = calcProjMat3D(viewAngle, ratio);
 
     // SRM
+    // float R = thisTime;
     float R = thisTime;
 #if 0
     glm::mat4 srm = glm::mat4(cosf(R), -sinf(R), 0, 0,
@@ -206,10 +229,20 @@ int main(int argc, char **argv)
                               0, 0, 1, 0,
                               0, 0, 0, 1);
 #endif
+#if 0
     glm::mat4 srm = glm::mat4(cosf(R), 0, 0, -sinf(R),
                               0, 1, 0, 0,
                               0, 0, 1, 0,
                               sinf(R), 0, 0, cosf(R));
+#endif
+    glm::mat4 srm = glm::mat4(cosf(R), 0, 0, -sinf(R),
+                              0, 1, 0, 0,
+                              0, 0, 1, 0,
+                              sinf(R), 0, 0, cosf(R)) * glm::mat4 (cosf(R), -sinf(R), 0, 0,
+                                                                  sinf(R), cosf(R), 0, 0,
+                                                                  0, 0, 1, 0,
+                                                                  0, 0, 0, 1);
+
 
     // Sending data to the GPU
     glUniform4fv(eyeLoc, 1, glm::value_ptr(eye)); GL_ERR_CHK;

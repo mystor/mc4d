@@ -17,6 +17,9 @@ uniform mat4 projMat3D;
 // Scene rotation matrix
 uniform mat4 srm;
 
+// Position in 3-space projection
+// out vec3 pos3Space;
+
 // This function accepts some pre-computed values which will help speed stuff up
 vec4 projectTo3D()
 {
@@ -35,6 +38,7 @@ vec4 projectTo3D()
 void main() {
   // Project into 3-space
   vec4 pos3 = projectTo3D();
+  // pos3Space = pos3.xyz / pos3.w;
   vec4 pos2 = projMat3D * pos3;
 
   // screenPos = position; // Ranges from -1 to 1 in each dimension
