@@ -5,9 +5,7 @@
 #include "world.h"
 #include "project.h"
 
-#include "fragShader.h"
-#include "vertShader.h"
-#include "geomShader.h"
+#include "shaders.h"
 
 #include "gl.h"
 
@@ -75,36 +73,7 @@ int main(int argc, char **argv)
   // std::unique_ptr<World> world(new World());
 
   // --- TEST --- TESSERACT x1 ---
-  // #define TESSERACT_LINES
-#ifdef TESSERACT_LINES
-  glm::vec4 verts[Tesseract::LINES_SIZE * 7];
-  Tesseract::linesWithOffset(glm::vec4(0,0,0,0), verts);
-  Tesseract::linesWithOffset(glm::vec4(0,0,1,0), verts + Tesseract::LINES_SIZE);
-  Tesseract::linesWithOffset(glm::vec4(0,0,-1,0), verts + Tesseract::LINES_SIZE * 2);
-  Tesseract::linesWithOffset(glm::vec4(1,0,0,0), verts + Tesseract::LINES_SIZE * 3);
-  Tesseract::linesWithOffset(glm::vec4(-1,0,0,0), verts + Tesseract::LINES_SIZE * 4);
-  Tesseract::linesWithOffset(glm::vec4(0,0,0,1), verts + Tesseract::LINES_SIZE * 5);
-  Tesseract::linesWithOffset(glm::vec4(0,0,0,-1), verts + Tesseract::LINES_SIZE * 6);
-
-  GLuint VAO, VBO;
-  glGenVertexArrays(1, &VAO);
-  glBindVertexArray(VAO);
-
-  // Create & Bind the VBO
-  glGenBuffers(1, &VBO);
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-  // Load the data
-  glBufferData(GL_ARRAY_BUFFER,
-               sizeof(verts),
-               verts,
-               GL_STATIC_DRAW);
-
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
-  GL_ERR_CHK;
-#else // TRIS
-  glm::vec4 verts[Tesseract::OUT_SIZE * 7];
+  TesseractVert verts[Tesseract::OUT_SIZE * 7];
   Tesseract::withOffset(glm::vec4(0,0,0,0), verts);
   Tesseract::withOffset(glm::vec4(0,0,1,0), verts + Tesseract::OUT_SIZE);
   Tesseract::withOffset(glm::vec4(0,0,-1,0), verts + Tesseract::OUT_SIZE * 2);
@@ -128,9 +97,10 @@ int main(int argc, char **argv)
                GL_STATIC_DRAW);
 
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 32, 0);
+  glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 32, (void*) 16);
   GL_ERR_CHK;
-#endif
 
   // -- END TEST --
 
@@ -143,21 +113,6 @@ int main(int argc, char **argv)
   mainShader.link();
   mainShader.activate();
   GL_ERR_CHK;
-
-#if 0 // Print max texture buffer sizes
-  GLint maxTextureBufferSize;
-  glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, &maxTextureBufferSize);
-  std::cout << maxTextureBufferSize << std::endl;
-#endif
-
-  // The current state of the program
-#if 0
-  glm::vec4 up(0, 1, 0, 0);
-  glm::vec4 over(0, 0, 1, 0);
-  glm::vec4 forward(-1, 0, 0, 0);
-  float viewAngle = 45;
-  glm::vec4 eye(4, 0, 0, 0);
-#endif
 
   // glm::vec4 up(-.71, .71, 0, 0);
   glm::vec4 up(0, 1, 0, 0);
@@ -222,7 +177,7 @@ int main(int argc, char **argv)
 
     // SRM
     // float R = thisTime;
-    float R = thisTime;
+    float R = 0;
 #if 0
     glm::mat4 srm = glm::mat4(cosf(R), -sinf(R), 0, 0,
                               sinf(R), cosf(R), 0, 0,

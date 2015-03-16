@@ -3,7 +3,12 @@
 layout(triangles) in;
 layout(triangle_strip, max_vertices=3) out;
 
+// The location of the eye in space
+uniform vec4 eye;
                   // in vec3 pos3Space[];
+
+in vec4 vcolor[];
+out vec4 color;
 
 out vec3 normal;
 
@@ -20,6 +25,7 @@ void main()
   {
      // copy attributes
     gl_Position = gl_in[i].gl_Position;
+    color = vcolor[i];
 
     // done with the vertex
     EmitVertex();

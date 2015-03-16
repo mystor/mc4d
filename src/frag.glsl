@@ -1,5 +1,6 @@
 #version 410
 
+in vec4 color;
 in vec3 normal;
 
 out vec4 fragColour;
@@ -7,5 +8,5 @@ out vec4 fragColour;
 void main()
 {
   vec3 nNormal = abs(normal);
-  fragColour = vec4(nNormal, 0.5);
+  fragColour = color;// vec4(nNormal, 0.5);
 }

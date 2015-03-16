@@ -1,6 +1,7 @@
 #version 410
 
 layout (location = 0) in vec4 position;
+layout (location = 1) in vec4 color;
 
 // The location of the eye in space
 uniform vec4 eye;
@@ -17,8 +18,7 @@ uniform mat4 projMat3D;
 // Scene rotation matrix
 uniform mat4 srm;
 
-// Position in 3-space projection
-// out vec3 pos3Space;
+out vec4 vcolor;
 
 // This function accepts some pre-computed values which will help speed stuff up
 vec4 projectTo3D()
@@ -38,8 +38,9 @@ vec4 projectTo3D()
 void main() {
   // Project into 3-space
   vec4 pos3 = projectTo3D();
-  // pos3Space = pos3.xyz / pos3.w;
   vec4 pos2 = projMat3D * pos3;
+
+  vcolor = color;
 
   // screenPos = position; // Ranges from -1 to 1 in each dimension
   gl_Position = pos2;

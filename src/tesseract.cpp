@@ -3,17 +3,16 @@
 #include "more.h"
 #include "config.h"
 
-#include <glm/glm.hpp>
 #include <array>
 #include <iostream>
 
 using namespace glm;
 
 // zero-out the faces array at program start
-vec4 Tesseract::faces[Tesseract::FACE_COUNT * Tesseract::FACE_SIZE] = {};
+TesseractVert Tesseract::faces[Tesseract::FACE_COUNT * Tesseract::FACE_SIZE] = {};
 
 // TODO(michael): This should actually probably make some effort to standardize the normals...
-static void mk4DFace(vec4 fixed, vec4 free1, vec4 free2, vec4 *face) {
+static void mk4DFace(vec4 fixed, vec4 free1, vec4 free2, TesseractVert *face) {
   // Get the fixed coordinates
   vec4 offset(0.5, 0.5, 0.5, 0.5);
 
@@ -31,6 +30,7 @@ void Tesseract::gen() {
   const vec4 uz(0, 0, 1, 0);
   const vec4 uw(0, 0, 0, 1);
 
+
   // We can generate the faces of the hypercube by fixing every pair of 2
   // of the 4 coordinates to each of 1 and 0.
 
@@ -43,7 +43,7 @@ void Tesseract::gen() {
   // _ F _ F
   // _ F F _
 
-  vec4 *face_p = faces;
+  TesseractVert *face_p = faces;
   for (float fst = 0; fst < 2; fst++) { // for fst in 0, 1
     for (float snd = 0; snd < 2; snd++) { // for snd in 0, 1
       // x y z w
@@ -73,6 +73,7 @@ void Tesseract::gen() {
     }
   }
 
+#if 0
   if (Config::boolArg("print-face-verts")) {
     // Print out the faces
     for (size_t face=0; face<FACE_COUNT; face++) {
@@ -84,26 +85,27 @@ void Tesseract::gen() {
                 << ")\n";
     }
   }
+#endif
 }
 
 void Tesseract::linesWithOffset(glm::vec4 offset, glm::vec4 *out) {
   for (size_t face=0; face<FACE_COUNT; face++) {
     // Create the verts
-    out[face * 8 + 0] = faces[face * 4 + 0] + offset;
-    out[face * 8 + 1] = faces[face * 4 + 1] + offset;
+    out[face * 8 + 0] = faces[face * 4 + 0].loc + offset;
+    out[face * 8 + 1] = faces[face * 4 + 1].loc + offset;
 
-    out[face * 8 + 2] = faces[face * 4 + 1] + offset;
-    out[face * 8 + 3] = faces[face * 4 + 2] + offset;
+    out[face * 8 + 2] = faces[face * 4 + 1].loc + offset;
+    out[face * 8 + 3] = faces[face * 4 + 2].loc + offset;
 
-    out[face * 8 + 4] = faces[face * 4 + 2] + offset;
-    out[face * 8 + 5] = faces[face * 4 + 3] + offset;
+    out[face * 8 + 4] = faces[face * 4 + 2].loc + offset;
+    out[face * 8 + 5] = faces[face * 4 + 3].loc + offset;
 
-    out[face * 8 + 6] = faces[face * 4 + 3] + offset;
-    out[face * 8 + 7] = faces[face * 4 + 0] + offset;
+    out[face * 8 + 6] = faces[face * 4 + 3].loc + offset;
+    out[face * 8 + 7] = faces[face * 4 + 0].loc + offset;
   }
 }
 
-void Tesseract::withOffset(glm::vec4 offset, glm::vec4 *out) {
+void Tesseract::withOffset(glm::vec4 offset, TesseractVert *out) {
   for (size_t face=0; face<FACE_COUNT; face++) {
     // First triangle
     out[face * 6 + 0] = faces[face * 4 + 0] + offset;

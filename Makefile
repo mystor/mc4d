@@ -5,8 +5,12 @@ CXXFLAGS=-Wall -O0
 
 FILES=src/main.o src/tesseract.o src/controls.o src/more.o src/config.o src/gpuprogram.o src/noise.o src/world.o src/project.o
 
-mc4d: $(FILES)
+mc4d: src/shaders.h $(FILES)
 	$(CXX) $(CXXFLAGS) $(FILES) -o mc4d $(LDFLAGS)
+
+# Ensure that the shader headers have been built before the main program is compiled
+# If we don't do this, then after cleaning the shaders won't exist and building will fail
+src/shaders.h: src/vertShader.h src/fragShader.h src/geomShader.h
 
 # Pull in generated dependency information for existing .o files
 -include $(FILES:.o=.d)
@@ -44,7 +48,3 @@ src/geomShader.h: src/geom.glsl
 	echo "char geomGlsl[] = {" > src/geomShader.h
 	xxd -i < src/geom.glsl >> src/geomShader.h
 	echo ", 0x00\n};" >> src/geomShader.h
-
-# Ensure that the shader headers have been built before the main program is compiled
-# If we don't do this, then after cleaning the shaders won't exist and building will fail
-src/main.o: src/vertShader.h src/fragShader.h src/geomShader.h

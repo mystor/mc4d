@@ -9,6 +9,8 @@
 #ifndef __world_h
 #define __world_h
 
+#include "tesseract.h"
+
 #include "gl.h"
 
 #include <vector>
@@ -33,7 +35,7 @@ class World {
   GLuint VAO;
   GLuint VBO;
 
-  std::vector<glm::vec4> verts;
+  std::vector<TesseractVert> verts;
   HyperCubeTypes hypercubes[WD_X][WD_Y][WD_Z][WD_W];
 
   HyperCubeTypes worldSample(int32_t x, int32_t y, int32_t z, int32_t w);

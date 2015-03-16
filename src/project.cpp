@@ -40,7 +40,7 @@ mat4 calcWorldToEyeMat4D(vec4 up, vec4 over, vec4 forward) {
 }
 
 float calcInvTanViewAngle(float viewAngle) {
-  return 1.0f / tan(viewAngle / 2);
+  return 1.0f / tan(viewAngle * M_PI / 360);
 }
 
 
@@ -52,7 +52,7 @@ mat4 calcProjMat3D(float viewAngle, float aspectRatio) {
 
   mat4 view = lookAt(vec3(1.5, 0, 0),
                      vec3(0, 0, 0),
-                     vec3(0, 1, 0));
+                     vec3(0, -1, 0));
 
   return projection * view;
 }

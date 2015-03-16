@@ -49,5 +49,4 @@ struct Config {
   }
 };
 
-
 #endif // defined(__config_h)

@@ -1,6 +1,5 @@
 #include "world.h"
 #include "noise.h"
-#include "tesseract.h"
 
 static const size_t EST_VERT_COUNT = 495360;
 
@@ -58,7 +57,7 @@ World::World() {
 
   // Reserve a pre-computed amount of space for these verts
   // TODO(michael): Maybe don't make this manual
-  glm::vec4 tmpVerts[Tesseract::OUT_SIZE];
+  TesseractVert tmpVerts[Tesseract::OUT_SIZE];
   verts.reserve(EST_VERT_COUNT);
 
   for (x=0; x<WORLD_DIM.x; x++) {
