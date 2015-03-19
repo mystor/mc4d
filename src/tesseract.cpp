@@ -22,6 +22,20 @@ static void mk4DFace(vec4 fixed, vec4 free1, vec4 free2, TesseractVert *face) {
   face[3] = fixed + free2 - offset;
 }
 
+static void mk4DCube(vec4 fixed, vec4 free1, vec4 free2, vec4 free3, TesseractVert *face) {
+  mk4DFace(fixed + free1, free2, free3, face);
+  face += 4;
+  mk4DFace(fixed, free2, free3, face);
+  face += 4;
+  mk4DFace(fixed + free2, free1, free3, face);
+  face += 4;
+  mk4DFace(fixed, free1, free3, face);
+  face += 4;
+  mk4DFace(fixed + free3, free1, free2, face);
+  face += 4;
+  mk4DFace(fixed, free1, free2, face);
+}
+
 void Tesseract::gen() {
   // These are some constant vectors in each of the directions which will
   // make writing the gen code easier
@@ -30,7 +44,24 @@ void Tesseract::gen() {
   const vec4 uz(0, 0, 1, 0);
   const vec4 uw(0, 0, 0, 1);
 
+  // Create 8 cubes!
+  {
+    TesseractVert *face_p = faces;
 
+#define MKFACES(a, b, c, d) mk4DCube(vec4(), b, c, d, face_p);\
+    face_p += 24;\
+    mk4DCube(a, b, c, d, face_p);\
+    face_p += 24
+
+    MKFACES(ux, uy, uz, uw);
+    MKFACES(uy, ux, uz, uw);
+    MKFACES(uz, ux, uy, uw);
+    MKFACES(uw, ux, uy, uz);
+#undef MKFACES
+  }
+
+
+#if 0
   // We can generate the faces of the hypercube by fixing every pair of 2
   // of the 4 coordinates to each of 1 and 0.
 
@@ -72,6 +103,7 @@ void Tesseract::gen() {
       face_p += 4;
     }
   }
+#endif
 
 #if 0
   if (Config::boolArg("print-face-verts")) {

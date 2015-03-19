@@ -9,6 +9,8 @@
 #ifndef __tesseract_h
 #define __tesseract_h
 
+#define TESSERACT_CUBES
+
 #include "gl.h"
 #include <glm/glm.hpp>
 
@@ -39,7 +41,11 @@ static_assert(sizeof(TesseractVert) == 8*sizeof(float),
 
 struct Tesseract {
   // There are 24 faces on a tesseract
+#ifdef TESSERACT_CUBES
+  static const size_t FACE_COUNT = 48;// 24;
+#else
   static const size_t FACE_COUNT = 24;
+#endif
   static const size_t FACE_SIZE = 4;
   static const size_t FACES_SIZE = FACE_COUNT * FACE_SIZE;
   static TesseractVert faces[FACES_SIZE];

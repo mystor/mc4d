@@ -63,6 +63,10 @@ int main(int argc, char **argv)
   }
   glErrChk("GLEW_ERROR (OK)");
 
+  glEnable(GL_DEPTH_TEST);
+  // TODO(michael): Add command line config option for this
+  // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
   // View view = View();
 
   // Before we can create the world, we need to initialize the tesseract
@@ -73,7 +77,7 @@ int main(int argc, char **argv)
   // std::unique_ptr<World> world(new World());
 
   // --- TEST --- TESSERACT x1 ---
-  TesseractVert verts[Tesseract::OUT_SIZE * 7];
+  TesseractVert verts[Tesseract::OUT_SIZE * 9];
   Tesseract::withOffset(glm::vec4(0,0,0,0), verts);
   Tesseract::withOffset(glm::vec4(0,0,1,0), verts + Tesseract::OUT_SIZE);
   Tesseract::withOffset(glm::vec4(0,0,-1,0), verts + Tesseract::OUT_SIZE * 2);
@@ -81,6 +85,8 @@ int main(int argc, char **argv)
   Tesseract::withOffset(glm::vec4(-1,0,0,0), verts + Tesseract::OUT_SIZE * 4);
   Tesseract::withOffset(glm::vec4(0,0,0,1), verts + Tesseract::OUT_SIZE * 5);
   Tesseract::withOffset(glm::vec4(0,0,0,-1), verts + Tesseract::OUT_SIZE * 6);
+  Tesseract::withOffset(glm::vec4(0,1,0,0), verts + Tesseract::OUT_SIZE * 7);
+  Tesseract::withOffset(glm::vec4(0,-1,0,0), verts + Tesseract::OUT_SIZE * 8);
 
   GLuint VAO, VBO;
   glGenVertexArrays(1, &VAO);
@@ -161,12 +167,12 @@ int main(int argc, char **argv)
 
     // Clear the color for the background
     glClearColor( 1.0, 0.0, 1.0, 1.0 );
-    glClear( GL_COLOR_BUFFER_BIT );
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 
-    eye.y = fmod(thisTime, 5);
+    /* eye.y = fmod(thisTime, 5);
     eye.z = fmod(thisTime/2, 5);
-    forward = normalize(-eye);
+    forward = normalize(-eye); */
 
     // Calculate projecton stuff
     glm::mat4 worldToEyeMat4D = calcWorldToEyeMat4D(up, over, forward);
@@ -176,8 +182,8 @@ int main(int argc, char **argv)
     glm::mat4 projMat3D = calcProjMat3D(viewAngle, ratio);
 
     // SRM
-    // float R = thisTime;
-    float R = 0;
+    float R = thisTime;
+    // float R = 0;
 #if 0
     glm::mat4 srm = glm::mat4(cosf(R), -sinf(R), 0, 0,
                               sinf(R), cosf(R), 0, 0,
