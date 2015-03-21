@@ -78,6 +78,12 @@ int main(int argc, char **argv)
 
   std::cout << world->hypercubeLocs.size() << std::endl;
 
+  GLint maxTextureSize;
+  glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
+
+  std::cout << maxTextureSize << std::endl;
+  assert((uint32_t)maxTextureSize >= world->hypercubeLocs.size());
+
   // Create the texture!
   GLuint hypercubeLocsTex;
   glGenTextures(1, &hypercubeLocsTex);
@@ -87,15 +93,16 @@ int main(int argc, char **argv)
                0, GL_RGBA, GL_FLOAT,
                world->hypercubeLocs.data());
   glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  GL_ERR_CHK;
 
 
   // Surface Textures
   float faceTexPts[16*16];
   srand(223); // Arbitrarially chosen for the texture on the stone
   for (size_t i = 0; i < sizeof(faceTexPts)/sizeof(faceTexPts[0]); i++) {
-    std::cout << rand() << std::endl;
     faceTexPts[i] = ((float) rand()) / RAND_MAX;
   }
+
   GLuint faceTex;
   glGenTextures(1, &faceTex);
   glBindTexture(GL_TEXTURE_2D, faceTex);
@@ -105,11 +112,13 @@ int main(int argc, char **argv)
                faceTexPts);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  GL_ERR_CHK;
 
 
   // --- TEST --- TESSERACT x1 ---
   TesseractVert verts[Tesseract::OUT_SIZE];
   Tesseract::withOffset(glm::vec4(0,0,0,0), verts);
+  GL_ERR_CHK;
 
   GLuint VAO, VBO;
   glGenVertexArrays(1, &VAO);
@@ -124,6 +133,7 @@ int main(int argc, char **argv)
                sizeof(verts),
                verts,
                GL_STATIC_DRAW);
+  GL_ERR_CHK;
 
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
