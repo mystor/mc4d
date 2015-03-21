@@ -15,22 +15,22 @@ uniform float recipTanViewAngle;
 // The 3d projection matrix
 uniform mat4 projMat3D;
 
-// Scene rotation matrix
-uniform mat4 srm;
-
-// The points in space
+// The points in space (and the # of them)
 uniform sampler1D hypercube;
-
 uniform float hcCount;
 
+// Passing the color to the geometry shader
 out vec4 vcolor;
 
 // This function accepts some pre-computed values which will help speed stuff up
 vec4 projectTo3D()
 {
+  // Get the position of the hypercube based on a texture lookuo
+  // TODO(michael): support more cells by using 2D textures instead of 1D ones
   vec4 realPosition = position + texture(hypercube, gl_InstanceID / hcCount);
-  // vec4 realPosition = position;
-  vec4 eyePos = (srm * realPosition) - eye;
+
+  // Get the position in eye-space (offset)
+  vec4 eyePos = realPosition - eye;
 
   float scale = recipTanViewAngle / dot(eyePos, worldToEyeMat4D[3]);
 
@@ -47,8 +47,7 @@ void main() {
   vec4 pos3 = projectTo3D();
   vec4 pos2 = projMat3D * pos3;
 
+  // Outputs
   vcolor = color;
-
-  // screenPos = position; // Ranges from -1 to 1 in each dimension
   gl_Position = pos2;
 }

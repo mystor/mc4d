@@ -14,37 +14,97 @@
 #include <stdlib.h>
 #include <iostream>
 
-double calcFPS(double theTimeInterval = 1.0);
+// The state of the world.
+static struct WorldState {
+  // Camera position and other info
+  // This is used to derive the matrices
+  float viewAngle;
+  glm::vec4 up;
+  glm::vec4 over;
+  glm::vec4 eye;
+  glm::vec4 forward;
 
-/// This function is called when the
+  // Keyboard state
+  bool wDown, aDown, sDown, dDown;
+  bool spDown, shiftDown;
+} WS;
+
+// If GLFW reports an error, this will be called
 static void errorCallback(int error, const char* description)
 {
   std::cerr << "GLFW ERROR: " << error << ": " << description << std::endl;
   fputs(description, stderr);
 }
 
-void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+// Keyboard handler
+static void keyCallback(GLFWwindow* window, int key,
+                        int /* scancode */, int action, int /* mods */)
 {
-  // Quit the program when the escape key is pressed
-  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    glfwSetWindowShouldClose(window, GL_TRUE);
+  if (action == GLFW_PRESS) {
+    switch (key) {
+    case GLFW_KEY_ESCAPE: {
+      glfwSetWindowShouldClose(window, GL_TRUE);
+    } break;
+    case GLFW_KEY_M: {
+      static bool lines = false;
+      if (lines) {
+        lines = !lines;
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+      } else {
+        lines = !lines;
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+      }
+    } break;
 
-  if (key == GLFW_KEY_M && action == GLFW_PRESS) {
-    static bool lines = false;
-    if (lines) {
-      lines = !lines;
-      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    } else {
-      lines = !lines;
-      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+      // Super sketchy keyboard handling? YUSS!
+    case GLFW_KEY_W: {
+      WS.wDown = true;
+    } break;
+    case GLFW_KEY_A: {
+      WS.aDown = true;
+    } break;
+    case GLFW_KEY_S: {
+      WS.sDown = true;
+    } break;
+    case GLFW_KEY_D: {
+      WS.dDown = true;
     }
+    case GLFW_KEY_SPACE: {
+      WS.spDown = true;
+    }
+    case GLFW_KEY_RIGHT_SHIFT:
+    case GLFW_KEY_LEFT_SHIFT: {
+      WS.shiftDown = true;
+    }
+    }
+  } else if (action == GLFW_RELEASE) {
+    switch (key) {
+    case GLFW_KEY_W: {
+      WS.wDown = false;
+    } break;
+    case GLFW_KEY_A: {
+      WS.aDown = false;
+    } break;
+    case GLFW_KEY_S: {
+      WS.sDown = false;
+    } break;
+    case GLFW_KEY_D: {
+      WS.dDown = false;
+    }
+    case GLFW_KEY_SPACE: {
+      WS.spDown = false;
+    }
+    case GLFW_KEY_RIGHT_SHIFT:
+    case GLFW_KEY_LEFT_SHIFT: {
+      WS.shiftDown = false;
+    }
+    }
+
   }
 }
 
 int main(int argc, char **argv)
 {
-  std::cout << vertGlsl << std::endl;
-  std::cout << fragGlsl << std::endl;
   Config::init(argc, argv);
 
   GLFWwindow* window;
@@ -81,10 +141,6 @@ int main(int argc, char **argv)
   glErrChk("GLEW_ERROR (OK)");
 
   glEnable(GL_DEPTH_TEST);
-  // TODO(michael): Add command line config option for this
-  // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-  // View view = View();
 
   // Before we can create the world, we need to initialize the tesseract
   Tesseract::gen();
@@ -92,13 +148,12 @@ int main(int argc, char **argv)
 
   // The world is heap allocated because otherwise it will blow out the stack
   std::unique_ptr<World> world(new World());
+  std::cout << "Drawing " << world->hypercubeLocs.size() << " hypercubes." << std::endl;
 
-  std::cout << world->hypercubeLocs.size() << std::endl;
-
+  // Check the maximum texture size on this computer
   GLint maxTextureSize;
   glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
-
-  std::cout << maxTextureSize << std::endl;
+  std::cout << "Max texture size: " << maxTextureSize << std::endl;
   assert((uint32_t)maxTextureSize >= world->hypercubeLocs.size());
 
   // Create the texture!
@@ -112,8 +167,7 @@ int main(int argc, char **argv)
   glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   GL_ERR_CHK;
 
-
-  // Surface Textures
+  // Noise generation for surfaces. Done using random noise
   float faceTexPts[16*16];
   srand(223); // Arbitrarially chosen for the texture on the stone
   for (size_t i = 0; i < sizeof(faceTexPts)/sizeof(faceTexPts[0]); i++) {
@@ -131,8 +185,7 @@ int main(int argc, char **argv)
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   GL_ERR_CHK;
 
-
-  // --- TEST --- TESSERACT x1 ---
+  // Get the verts for a tesseract
   TesseractVert verts[Tesseract::OUT_SIZE];
   Tesseract::withOffset(glm::vec4(0,0,0,0), verts);
   GL_ERR_CHK;
@@ -152,13 +205,12 @@ int main(int argc, char **argv)
                GL_STATIC_DRAW);
   GL_ERR_CHK;
 
+  // Set up the vertex attrib array
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 32, 0);
   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 32, (void*) 16);
   GL_ERR_CHK;
-
-  // -- END TEST --
 
   // Create an initialize the GPU program which does basically all
   // of the actual rendering for the program
@@ -170,19 +222,11 @@ int main(int argc, char **argv)
   mainShader.activate();
   GL_ERR_CHK;
 
-  // glm::vec4 up(-.71, .71, 0, 0);
-  glm::vec4 up(0, 1, 0, 0);
-  glm::vec4 over(0, 0, 1, 0);
-  // glm::vec4 forward = normalize(glm::vec4(-2.83, -2.83, -0.01, 0));
-  // glm::vec4 forward = glm::vec4(1, 0, 0, 0);
-  float viewAngle = 45;
-  // glm::vec4 eye(2.83, 2.83, 0.01, 0);
-  // glm::vec4 eye(-4, 0, 0, 0);
-  glm::vec4 eye(-32, 32, 32, 32);
-
-  glm::vec4 forward = normalize(-eye);
-
-  glm::mat4 srm;
+  WS.viewAngle = 45;
+  WS.up = glm::vec4(0, 1, 0, 0);
+  WS.over = glm::vec4(0, 0, 1, 0);
+  WS.eye = glm::vec4(-32, 32, 32, 32);
+  WS.forward = normalize(-WS.eye);
 
   // Get the location of the uniforms on the GPU
   GLuint worldToEyeMat4DLoc = mainShader.uniformLocation("worldToEyeMat4D");
@@ -206,8 +250,6 @@ int main(int argc, char **argv)
   glActiveTexture(GL_TEXTURE0 + 2);
   glBindTexture(GL_TEXTURE_2D, faceTex);
 
-  GLuint srmLoc = mainShader.uniformLocation("srm");
-
   // Main loop
   double lastTime, thisTime, delta;
   lastTime = glfwGetTime();
@@ -217,76 +259,40 @@ int main(int argc, char **argv)
     delta = thisTime - lastTime;
     lastTime = thisTime;
 
-    /* Get the screen aspect ratio */
+    // Get the screen aspect ratio
     float ratio;
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
     ratio = width / (float) height;
 
-    // float R = M_PI * delta;
-    // glm::mat4 rotMat(cosf(R), -sinf(R), 0, 0,
-    // sinf(R), cosf(R), 0, 0,
-    // 0, 0, 1, 0,
-    // 0, 0, 0, 1);
-
-    // eye *= R; // Rotate the eye
-    // forward = normalize(-eye); // Look toward (0, 0, 0, 0)
-
     // Clear the color for the background
     glClearColor( 77.0/255, 219.0/255, 213.0/255, 1.0 );
-    // glClearColor( 1.0, 0.0, 1.0, 1.0 );
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-
-#if 0
-    eye.y = fmod(thisTime/2, 15);
-    eye.z = fmod(thisTime, 30);
-    forward = normalize(-eye);
-#endif
-
     // Calculate projecton stuff
-    glm::mat4 worldToEyeMat4D = calcWorldToEyeMat4D(up, over, forward);
-    float invTanViewAngle = calcInvTanViewAngle(viewAngle);
+    glm::mat4 worldToEyeMat4D = calcWorldToEyeMat4D(WS.up, WS.over, WS.forward);
+    float invTanViewAngle = calcInvTanViewAngle(WS.viewAngle);
 
     // Value required for the 3D->2D projection
-    glm::mat4 projMat3D = calcProjMat3D(viewAngle, ratio);
+    glm::mat4 projMat3D = calcProjMat3D(WS.viewAngle, ratio);
 
-    // SRM
-    float R = thisTime;
-    // float R = 0;
-    glm::mat4 srm = glm::mat4(cosf(R), 0, 0, -sinf(R),
-                              0, 1, 0, 0,
-                              0, 0, 1, 0,
-                              sinf(R), 0, 0, cosf(R)) /* * glm::mat4 (cosf(R), -sinf(R), 0, 0,
-                                                                  sinf(R), cosf(R), 0, 0,
-                                                                  0, 0, 1, 0,
-                                                                  0, 0, 0, 1) */;
-
+    /*
+ROTATION MATRIX:
+glm::mat4(cosf(R), 0, 0, -sinf(R),
+          0, 1, 0, 0,
+          0, 0, 1, 0,
+          sinf(R), 0, 0, cosf(R))
+    */
 
     // Sending data to the GPU
-    glUniform4fv(eyeLoc, 1, glm::value_ptr(eye)); GL_ERR_CHK;
+    glUniform4fv(eyeLoc, 1, glm::value_ptr(WS.eye)); GL_ERR_CHK;
     glUniform1f(recipTanViewAngleLoc, invTanViewAngle); GL_ERR_CHK;
     glUniformMatrix4fv(worldToEyeMat4DLoc, 1, GL_FALSE, glm::value_ptr(worldToEyeMat4D)); GL_ERR_CHK;
     glUniformMatrix4fv(projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D)); GL_ERR_CHK;
 
-    // Scene Rotation Matrix (for basic visualization purposes)
-    glUniformMatrix4fv(srmLoc, 1, GL_FALSE, glm::value_ptr(srm)); GL_ERR_CHK;
-
-    // Draw the tesseract
-
     // Draw the tesseracts!
-#if 0
-    glBindVertexArray(tessVAO);
-    glDrawArrays(GL_TRIANGLES, 0, sizeof(tess)/sizeof(tess[0]));
-    glDrawArraysInstanced(GL_TRIANGLES, 0,
-                          sizeof(tess)/sizeof(tess[0]),
-                          /* world->hypercubeLocs.size() */1);
-#endif
-
-#if 1
     glBindVertexArray(VAO);
     glDrawArraysInstanced(GL_TRIANGLES, 0, sizeof(verts)/sizeof(verts[0]), world->hypercubeLocs.size());
-#endif
     GL_ERR_CHK;
 
     // world->draw();
@@ -302,51 +308,4 @@ int main(int argc, char **argv)
   glfwDestroyWindow(window);
   glfwTerminate();
   exit(EXIT_SUCCESS);
-}
-
-
-
-
-// ----
-
-// This is a really simple FPS thing from http://r3dux.org/2012/07/a-simple-glfw-fps-counter/
-double calcFPS(double theTimeInterval) {
-  // Static values which only get initialised the first time the function runs
-  static double t0Value       = glfwGetTime(); // Set the initial time to now
-  static int    fpsFrameCount = 0;             // Set the initial FPS frame count to 0
-  static double fps           = 0.0;           // Set the initial FPS value to 0.0
-
-  // Get the current time in seconds since the program started (non-static, so executed every time)
-  double currentTime = glfwGetTime();
-
-  // Ensure the time interval between FPS checks is sane (low cap = 0.1s, high-cap = 10.0s)
-  // Negative numbers are invalid, 10 fps checks per second at most, 1 every 10 secs at least.
-  if (theTimeInterval < 0.1)
-    {
-      theTimeInterval = 0.1;
-    }
-  if (theTimeInterval > 10.0)
-    {
-      theTimeInterval = 10.0;
-    }
-
-  // Calculate and display the FPS every specified time interval
-  if ((currentTime - t0Value) > theTimeInterval)
-    {
-      // Calculate the FPS as the number of frames divided by the interval in seconds
-      fps = (double)fpsFrameCount / (currentTime - t0Value);
-
-      std::cout << "FPS: " << fps << std::endl;
-
-      // Reset the FPS frame counter and set the initial time to be now
-      fpsFrameCount = 0;
-      t0Value = glfwGetTime();
-    }
-  else // FPS calculation time interval hasn't elapsed yet? Simply increment the FPS frame counter
-    {
-      fpsFrameCount++;
-    }
-
-  // Return the current FPS - doesn't have to be used if you don't want it!
-  return fps;
 }
