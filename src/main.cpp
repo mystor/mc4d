@@ -23,10 +23,6 @@ static struct WorldState {
   glm::vec4 over;
   glm::vec4 eye;
   glm::vec4 forward;
-
-  // Keyboard state
-  bool wDown, aDown, sDown, dDown;
-  bool spDown, shiftDown;
 } WS;
 
 // If GLFW reports an error, this will be called
@@ -55,51 +51,10 @@ static void keyCallback(GLFWwindow* window, int key,
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
       }
     } break;
-
-      // Super sketchy keyboard handling? YUSS!
-    case GLFW_KEY_W: {
-      WS.wDown = true;
-    } break;
-    case GLFW_KEY_A: {
-      WS.aDown = true;
-    } break;
-    case GLFW_KEY_S: {
-      WS.sDown = true;
-    } break;
-    case GLFW_KEY_D: {
-      WS.dDown = true;
-    }
-    case GLFW_KEY_SPACE: {
-      WS.spDown = true;
-    }
-    case GLFW_KEY_RIGHT_SHIFT:
-    case GLFW_KEY_LEFT_SHIFT: {
-      WS.shiftDown = true;
-    }
     }
   } else if (action == GLFW_RELEASE) {
     switch (key) {
-    case GLFW_KEY_W: {
-      WS.wDown = false;
-    } break;
-    case GLFW_KEY_A: {
-      WS.aDown = false;
-    } break;
-    case GLFW_KEY_S: {
-      WS.sDown = false;
-    } break;
-    case GLFW_KEY_D: {
-      WS.dDown = false;
     }
-    case GLFW_KEY_SPACE: {
-      WS.spDown = false;
-    }
-    case GLFW_KEY_RIGHT_SHIFT:
-    case GLFW_KEY_LEFT_SHIFT: {
-      WS.shiftDown = false;
-    }
-    }
-
   }
 }
 
@@ -225,8 +180,8 @@ int main(int argc, char **argv)
   WS.viewAngle = 45;
   WS.up = glm::vec4(0, 1, 0, 0);
   WS.over = glm::vec4(0, 0, 1, 0);
-  WS.eye = glm::vec4(-32, 32, 32, 32);
-  WS.forward = normalize(-WS.eye);
+  WS.eye = glm::vec4(-32, 8, 8, 8);
+  WS.forward = glm::vec4(1, 0, 0, 0); // normalize(-WS.eye);
 
   // Get the location of the uniforms on the GPU
   GLuint worldToEyeMat4DLoc = mainShader.uniformLocation("worldToEyeMat4D");
@@ -252,6 +207,7 @@ int main(int argc, char **argv)
 
   // Main loop
   double lastTime, thisTime, delta;
+  double mouseX = -1, mouseY = -1;
   lastTime = glfwGetTime();
   while (!glfwWindowShouldClose(window)) {
     // Calculate the time delta
@@ -268,6 +224,48 @@ int main(int argc, char **argv)
     // Clear the color for the background
     glClearColor( 77.0/255, 219.0/255, 213.0/255, 1.0 );
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+    // Mouse Movement
+    // Determine t
+
+    double cursorX, cursorY;
+    glfwGetCursorPos(window, &cursorX, &cursorY);
+    if (abs(cursorX - mouseX) > 1 || abs(cursorY != mouseY) > 1) {
+      std::cout << mouseX - cursorX << " " << mouseY - cursorY << "\n";
+
+      int windowWidth, windowHeight;
+      glfwGetWindowSize(window, &windowWidth, &windowHeight);
+      glm::vec2 cent(windowWidth/2, windowHeight/2.0);
+      glfwSetCursorPos(window, cent.x, cent.y);
+
+      mouseX = cent.x, mouseY = cent.y;
+    }
+    // World state updating
+    {
+      const float SPEED = 0.25;
+      // Get the component of forward perpendicular to up
+      glm::vec4 perpForward = normalize(WS.forward - glm::dot(WS.up, WS.forward));
+
+      // Move!
+      if (glfwGetKey(window, GLFW_KEY_W)) {
+        WS.eye += perpForward * SPEED;
+      }
+      if (glfwGetKey(window, GLFW_KEY_A)) {
+        WS.eye += WS.over * SPEED;
+      }
+      if (glfwGetKey(window, GLFW_KEY_S)) {
+        WS.eye -= perpForward * SPEED;
+      }
+      if (glfwGetKey(window, GLFW_KEY_D)) {
+        WS.eye -= WS.over * SPEED;
+      }
+      if (glfwGetKey(window, GLFW_KEY_SPACE)) {
+        WS.eye += WS.up * SPEED;
+      }
+      if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
+        WS.eye -= WS.up * SPEED;
+      }
+    }
 
     // Calculate projecton stuff
     glm::mat4 worldToEyeMat4D = calcWorldToEyeMat4D(WS.up, WS.over, WS.forward);
@@ -300,7 +298,7 @@ glm::mat4(cosf(R), 0, 0, -sinf(R),
     glfwSwapBuffers(window);
     glfwPollEvents();
 
-    glErrChk("Main Loop");
+    GL_ERR_CHK;
     calcFPS();
   }
 
