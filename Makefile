@@ -3,7 +3,7 @@ LDFLAGS=$(shell pkg-config --static --libs glew glfw3)
 CPPFLAGS=$(shell pkg-config --cflags glew glfw3) -g
 CXXFLAGS=-Wall -O0
 
-FILES=src/main.o src/tesseract.o src/controls.o src/more.o src/config.o src/gpuprogram.o src/noise.o src/world.o src/project.o
+FILES=src/main.o src/tesseract.o src/more.o src/config.o src/gpuprogram.o src/noise.o src/world.o src/project.o
 
 mc4d: src/shaders.h $(FILES)
 	$(CXX) $(CXXFLAGS) $(FILES) -o mc4d $(LDFLAGS)

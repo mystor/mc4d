@@ -1,4 +1,4 @@
-#include "controls.h"
+// #include "controls.h"
 #include "tesseract.h"
 #include "config.h"
 #include "gpuProgram.h"
@@ -23,6 +23,23 @@ static void errorCallback(int error, const char* description)
   fputs(description, stderr);
 }
 
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+  // Quit the program when the escape key is pressed
+  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    glfwSetWindowShouldClose(window, GL_TRUE);
+
+  if (key == GLFW_KEY_M && action == GLFW_PRESS) {
+    static bool lines = false;
+    if (lines) {
+      lines = !lines;
+      glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    } else {
+      lines = !lines;
+      glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
+  }
+}
 
 int main(int argc, char **argv)
 {
@@ -216,7 +233,8 @@ int main(int argc, char **argv)
     // forward = normalize(-eye); // Look toward (0, 0, 0, 0)
 
     // Clear the color for the background
-    glClearColor( 1.0, 0.0, 1.0, 1.0 );
+    glClearColor( 77.0/255, 219.0/255, 213.0/255, 1.0 );
+    // glClearColor( 1.0, 0.0, 1.0, 1.0 );
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 
