@@ -42,11 +42,12 @@ void ShaderProgram::validateProgram() {
     glGetProgramiv(progId, GL_INFO_LOG_LENGTH, &logSize);
 
     char infoLog[logSize];
+    memset(infoLog, 0, logSize);
     glGetProgramInfoLog(progId, logSize, NULL, infoLog);
 
-    std::cerr << infoLog << std::endl;
+    std::cerr << "Log: " << infoLog << std::endl;
 
     // Exit the program due to the error!
-    exit(-1);
+    // exit(-1);
   }
 }

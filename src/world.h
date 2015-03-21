@@ -25,21 +25,23 @@ enum HyperCubeTypes {
 static_assert(sizeof(HyperCubeTypes) == sizeof(uint8_t),
               "The HyperCubeTypes enum should only be 8 bits wide");
 
-static const int32_t WD_X = 16;
-static const int32_t WD_Y = 16;
-static const int32_t WD_Z = 16;
-static const int32_t WD_W = 16;
+static const int32_t DIM = 16;
+static const int32_t WD_X = DIM;
+static const int32_t WD_Y = DIM;
+static const int32_t WD_Z = DIM;
+static const int32_t WD_W = DIM;
 static const glm::ivec4 WORLD_DIM(WD_X, WD_Y, WD_Z, WD_W);
 
 class World {
   GLuint VAO;
   GLuint VBO;
 
-  std::vector<TesseractVert> verts;
   HyperCubeTypes hypercubes[WD_X][WD_Y][WD_Z][WD_W];
 
   HyperCubeTypes worldSample(int32_t x, int32_t y, int32_t z, int32_t w);
 public:
+  std::vector<glm::vec4> hypercubeLocs;
+
   World();
 
   void draw();

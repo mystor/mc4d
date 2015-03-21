@@ -9,7 +9,7 @@
 #ifndef __tesseract_h
 #define __tesseract_h
 
-#define TESSERACT_CUBES
+// #define TESSERACT_CUBES
 
 #include "gl.h"
 #include <glm/glm.hpp>

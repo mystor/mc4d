@@ -18,12 +18,19 @@ uniform mat4 projMat3D;
 // Scene rotation matrix
 uniform mat4 srm;
 
+// The points in space
+uniform sampler1D hypercube;
+
+uniform float hcCount;
+
 out vec4 vcolor;
 
 // This function accepts some pre-computed values which will help speed stuff up
 vec4 projectTo3D()
 {
-  vec4 eyePos = (srm * position) - eye;
+  vec4 realPosition = position + texture(hypercube, gl_InstanceID / hcCount);
+  // vec4 realPosition = position;
+  vec4 eyePos = (srm * realPosition) - eye;
 
   float scale = recipTanViewAngle / dot(eyePos, worldToEyeMat4D[3]);
 

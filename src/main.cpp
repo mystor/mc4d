@@ -74,19 +74,42 @@ int main(int argc, char **argv)
   GL_ERR_CHK;
 
   // The world is heap allocated because otherwise it will blow out the stack
-  // std::unique_ptr<World> world(new World());
+  std::unique_ptr<World> world(new World());
+
+  std::cout << world->hypercubeLocs.size() << std::endl;
+
+  // Create the texture!
+  GLuint hypercubeLocsTex;
+  glGenTextures(1, &hypercubeLocsTex);
+  glBindTexture(GL_TEXTURE_1D, hypercubeLocsTex);
+  glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA,
+               world->hypercubeLocs.size(),
+               0, GL_RGBA, GL_FLOAT,
+               world->hypercubeLocs.data());
+  glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+
+  // Surface Textures
+  float faceTexPts[16*16];
+  srand(223); // Arbitrarially chosen for the texture on the stone
+  for (size_t i = 0; i < sizeof(faceTexPts)/sizeof(faceTexPts[0]); i++) {
+    std::cout << rand() << std::endl;
+    faceTexPts[i] = ((float) rand()) / RAND_MAX;
+  }
+  GLuint faceTex;
+  glGenTextures(1, &faceTex);
+  glBindTexture(GL_TEXTURE_2D, faceTex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RED,
+               16, 16,
+               0, GL_RED, GL_FLOAT,
+               faceTexPts);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
 
   // --- TEST --- TESSERACT x1 ---
-  TesseractVert verts[Tesseract::OUT_SIZE * 9];
+  TesseractVert verts[Tesseract::OUT_SIZE];
   Tesseract::withOffset(glm::vec4(0,0,0,0), verts);
-  Tesseract::withOffset(glm::vec4(0,0,1,0), verts + Tesseract::OUT_SIZE);
-  Tesseract::withOffset(glm::vec4(0,0,-1,0), verts + Tesseract::OUT_SIZE * 2);
-  Tesseract::withOffset(glm::vec4(1,0,0,0), verts + Tesseract::OUT_SIZE * 3);
-  Tesseract::withOffset(glm::vec4(-1,0,0,0), verts + Tesseract::OUT_SIZE * 4);
-  Tesseract::withOffset(glm::vec4(0,0,0,1), verts + Tesseract::OUT_SIZE * 5);
-  Tesseract::withOffset(glm::vec4(0,0,0,-1), verts + Tesseract::OUT_SIZE * 6);
-  Tesseract::withOffset(glm::vec4(0,1,0,0), verts + Tesseract::OUT_SIZE * 7);
-  Tesseract::withOffset(glm::vec4(0,-1,0,0), verts + Tesseract::OUT_SIZE * 8);
 
   GLuint VAO, VBO;
   glGenVertexArrays(1, &VAO);
@@ -127,7 +150,8 @@ int main(int argc, char **argv)
   // glm::vec4 forward = glm::vec4(1, 0, 0, 0);
   float viewAngle = 45;
   // glm::vec4 eye(2.83, 2.83, 0.01, 0);
-  glm::vec4 eye(-4, 0, 0, 0);
+  // glm::vec4 eye(-4, 0, 0, 0);
+  glm::vec4 eye(-32, 32, 32, 32);
 
   glm::vec4 forward = normalize(-eye);
 
@@ -138,6 +162,22 @@ int main(int argc, char **argv)
   GLuint recipTanViewAngleLoc = mainShader.uniformLocation("recipTanViewAngle");
   GLuint projMat3DLoc = mainShader.uniformLocation("projMat3D");
   GLuint eyeLoc = mainShader.uniformLocation("eye");
+  GLuint hypercubeLoc = mainShader.uniformLocation("hypercube");
+  GLuint hcCountLoc = mainShader.uniformLocation("hcCount");
+  GLuint faceTexLoc = mainShader.uniformLocation("faceTex");
+
+  // Set the texture up
+  glUniform1i(hypercubeLoc, 0);
+  glActiveTexture(GL_TEXTURE0 + 0);
+  glBindTexture(GL_TEXTURE_1D, hypercubeLocsTex);
+
+  // Send the count up to the GPU
+  glUniform1f(hcCountLoc, world->hypercubeLocs.size());
+
+  // Set the texture up
+  glUniform1i(faceTexLoc, 2);
+  glActiveTexture(GL_TEXTURE0 + 2);
+  glBindTexture(GL_TEXTURE_2D, faceTex);
 
   GLuint srmLoc = mainShader.uniformLocation("srm");
 
@@ -170,9 +210,11 @@ int main(int argc, char **argv)
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 
-    /* eye.y = fmod(thisTime, 5);
-    eye.z = fmod(thisTime/2, 5);
-    forward = normalize(-eye); */
+#if 0
+    eye.y = fmod(thisTime/2, 15);
+    eye.z = fmod(thisTime, 30);
+    forward = normalize(-eye);
+#endif
 
     // Calculate projecton stuff
     glm::mat4 worldToEyeMat4D = calcWorldToEyeMat4D(up, over, forward);
@@ -184,25 +226,13 @@ int main(int argc, char **argv)
     // SRM
     float R = thisTime;
     // float R = 0;
-#if 0
-    glm::mat4 srm = glm::mat4(cosf(R), -sinf(R), 0, 0,
-                              sinf(R), cosf(R), 0, 0,
-                              0, 0, 1, 0,
-                              0, 0, 0, 1);
-#endif
-#if 0
     glm::mat4 srm = glm::mat4(cosf(R), 0, 0, -sinf(R),
                               0, 1, 0, 0,
                               0, 0, 1, 0,
-                              sinf(R), 0, 0, cosf(R));
-#endif
-    glm::mat4 srm = glm::mat4(cosf(R), 0, 0, -sinf(R),
-                              0, 1, 0, 0,
-                              0, 0, 1, 0,
-                              sinf(R), 0, 0, cosf(R)) * glm::mat4 (cosf(R), -sinf(R), 0, 0,
+                              sinf(R), 0, 0, cosf(R)) /* * glm::mat4 (cosf(R), -sinf(R), 0, 0,
                                                                   sinf(R), cosf(R), 0, 0,
                                                                   0, 0, 1, 0,
-                                                                  0, 0, 0, 1);
+                                                                  0, 0, 0, 1) */;
 
 
     // Sending data to the GPU
@@ -215,13 +245,19 @@ int main(int argc, char **argv)
     glUniformMatrix4fv(srmLoc, 1, GL_FALSE, glm::value_ptr(srm)); GL_ERR_CHK;
 
     // Draw the tesseract
-    glBindVertexArray(VAO);
 
     // Draw the tesseracts!
-#ifdef TESSERACT_LINES
-    glDrawArrays(GL_LINES, 0, sizeof(verts)/sizeof(verts[0]));
-#else
-    glDrawArrays(GL_TRIANGLES, 0, sizeof(verts)/sizeof(verts[0]));
+#if 0
+    glBindVertexArray(tessVAO);
+    glDrawArrays(GL_TRIANGLES, 0, sizeof(tess)/sizeof(tess[0]));
+    glDrawArraysInstanced(GL_TRIANGLES, 0,
+                          sizeof(tess)/sizeof(tess[0]),
+                          /* world->hypercubeLocs.size() */1);
+#endif
+
+#if 1
+    glBindVertexArray(VAO);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, sizeof(verts)/sizeof(verts[0]), world->hypercubeLocs.size());
 #endif
     GL_ERR_CHK;
 
