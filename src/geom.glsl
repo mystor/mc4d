@@ -21,6 +21,25 @@ void main()
   // vec3 b = pos3Space[2] - pos3Space[0];
   normal = normalize(cross(a, b));
 
+  if (vcolor[0].w > 0 && vcolor[1].w > 0 && vcolor[2].w > 0) {
+    return;
+  }
+
+  for(int i = 0; i < gl_in.length(); i++)
+  {
+    if (isnan(gl_in[i].gl_Position.x) ||
+        isnan(gl_in[i].gl_Position.y) ||
+        isnan(gl_in[i].gl_Position.z) ||
+        isnan(gl_in[i].gl_Position.w) ||
+        isinf(gl_in[i].gl_Position.x) ||
+        isinf(gl_in[i].gl_Position.y) ||
+        isinf(gl_in[i].gl_Position.z) ||
+        isinf(gl_in[i].gl_Position.w)) {
+      return;
+    }
+  }
+
+
   for(int i = 0; i < gl_in.length(); i++)
   {
      // copy attributes

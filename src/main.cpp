@@ -180,17 +180,22 @@ int main(int argc, char **argv)
   WS.viewAngle = 45;
   WS.up = glm::vec4(0, 1, 0, 0);
   WS.over = glm::vec4(0, 0, 1, 0);
-  WS.eye = glm::vec4(-32, 8, 8, 8);
-  WS.forward = glm::vec4(1, 0, 0, 0); // normalize(-WS.eye);
+  // WS.eye = glm::vec4(-16, 16, 0, 0);
+  WS.eye = glm::vec4(-46, 40, 0, 0);
+  WS.forward = normalize(glm::vec4(1, -1, 0, 0)); // normalize(-WS.eye);
+
 
   // Get the location of the uniforms on the GPU
   GLuint worldToEyeMat4DLoc = mainShader.uniformLocation("worldToEyeMat4D");
   GLuint recipTanViewAngleLoc = mainShader.uniformLocation("recipTanViewAngle");
   GLuint projMat3DLoc = mainShader.uniformLocation("projMat3D");
   GLuint eyeLoc = mainShader.uniformLocation("eye");
+  GLuint forwardLoc = mainShader.uniformLocation("forward");
   GLuint hypercubeLoc = mainShader.uniformLocation("hypercube");
   GLuint hcCountLoc = mainShader.uniformLocation("hcCount");
   GLuint faceTexLoc = mainShader.uniformLocation("faceTex");
+
+  GLuint srmLoc = mainShader.uniformLocation("srm");
 
   // Set the texture up
   glUniform1i(hypercubeLoc, 0);
@@ -205,8 +210,11 @@ int main(int argc, char **argv)
   glActiveTexture(GL_TEXTURE0 + 2);
   glBindTexture(GL_TEXTURE_2D, faceTex);
 
+#define DUMP(a) std::cout << #a << " = " << a.x << ", " << a.y << ", " << a.z << ", " << a.w << "\n"
+
   // Main loop
   double lastTime, thisTime, delta;
+  double rotYF = 0, rotXZ = 0;
   double mouseX = -1, mouseY = -1;
   lastTime = glfwGetTime();
   while (!glfwWindowShouldClose(window)) {
@@ -225,27 +233,35 @@ int main(int argc, char **argv)
     glClearColor( 77.0/255, 219.0/255, 213.0/255, 1.0 );
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-    // Mouse Movement
-    // Determine t
-
     double cursorX, cursorY;
     glfwGetCursorPos(window, &cursorX, &cursorY);
     if (abs(cursorX - mouseX) > 1 || abs(cursorY != mouseY) > 1) {
-      std::cout << mouseX - cursorX << " " << mouseY - cursorY << "\n";
+      // std::cout << mouseX - cursorX << " " << mouseY - cursorY << "\n";
 
       int windowWidth, windowHeight;
       glfwGetWindowSize(window, &windowWidth, &windowHeight);
-      glm::vec2 cent(windowWidth/2, windowHeight/2.0);
-      glfwSetCursorPos(window, cent.x, cent.y);
+      // glm::vec2 cent(windowWidth/2, windowHeight/2.0);
 
-      mouseX = cent.x, mouseY = cent.y;
+      rotXZ += (cursorX - mouseX) / windowWidth * 2;
+
+      // glfwSetCursorPos(window, cent.x, cent.y);
+
+      // mouseX = cent.x, mouseY = cent.y;
+      mouseX = cursorX, mouseY = cursorY;
     }
-    // World state updating
+
+    glm::mat4 xzrotmat = glm::mat4(cosf(rotXZ), 0, sinf(rotXZ), 0,
+                                   0, 1, 0, 0,
+                                   -sinf(rotXZ), 0, cosf(rotXZ), 0,
+                                   0, 0, 0, 1);
+    /* WS.forward = glm::vec4(1, 0, 0, 0) * xzrotmat;
+    WS.over = glm::vec4(0, 0, 1, 0) * xzrotmat;
+    std::cout << WS.forward.x << "," << WS.forward.y << "," << WS.forward.z << "," << WS.forward.w << std::endl;
+    // World state updating */
     {
       const float SPEED = 0.25;
       // Get the component of forward perpendicular to up
-      glm::vec4 perpForward = normalize(WS.forward - glm::dot(WS.up, WS.forward));
-
+      glm::vec4 perpForward = normalize(WS.forward - (glm::dot(WS.up, WS.forward) * WS.up));
       // Move!
       if (glfwGetKey(window, GLFW_KEY_W)) {
         WS.eye += perpForward * SPEED;
@@ -274,19 +290,40 @@ int main(int argc, char **argv)
     // Value required for the 3D->2D projection
     glm::mat4 projMat3D = calcProjMat3D(WS.viewAngle, ratio);
 
-    /*
-ROTATION MATRIX:
-glm::mat4(cosf(R), 0, 0, -sinf(R),
-          0, 1, 0, 0,
-          0, 0, 1, 0,
-          sinf(R), 0, 0, cosf(R))
-    */
+    float R = thisTime;
+    // R = 0;
+#if 1
+    glm::mat4 srm = glm::mat4(cosf(R), 0, sinf(R), 0,
+                              0, 1, 0, 0,
+                              -sinf(R), 0, cosf(R), 0,
+                              0, 0, 0, 1);
+#else
+    glm::mat4 srm = glm::mat4(cosf(R), 0, 0, sinf(R),
+                              0, 1, 0, 0,
+                              0, 0, 1, 0,
+                              -sinf(R), 0, 0, cosf(R));
+    R *= 1.5;
+    srm *= glm::mat4(cosf(R), 0, sinf(R), 0,
+                     0, 1, 0, 0,
+                     -sinf(R), 0, cosf(R), 0,
+                     0, 0, 0, 1);
+    R *= 1/3;
+    srm *= glm::mat4(1, 0, 0, 0,
+                     0, 1, 0, 0,
+                     0, 0, cosf(R), sinf(R),
+                     0, 0, -sinf(R), cosf(R));
+#endif
+    // DUMP(WS.eye);
+
+    DUMP((-WS.eye * worldToEyeMat4D));
 
     // Sending data to the GPU
     glUniform4fv(eyeLoc, 1, glm::value_ptr(WS.eye)); GL_ERR_CHK;
+    glUniform4fv(forwardLoc, 1, glm::value_ptr(WS.forward)); GL_ERR_CHK;
     glUniform1f(recipTanViewAngleLoc, invTanViewAngle); GL_ERR_CHK;
     glUniformMatrix4fv(worldToEyeMat4DLoc, 1, GL_FALSE, glm::value_ptr(worldToEyeMat4D)); GL_ERR_CHK;
     glUniformMatrix4fv(projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D)); GL_ERR_CHK;
+    glUniformMatrix4fv(srmLoc, 1, GL_FALSE, glm::value_ptr(srm)); GL_ERR_CHK;
 
     // Draw the tesseracts!
     glBindVertexArray(VAO);

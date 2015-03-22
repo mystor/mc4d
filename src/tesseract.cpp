@@ -17,13 +17,13 @@ static void mk4DFace(vec4 fixed, vec4 free1, vec4 free2, TesseractVert *face) {
   vec4 offset(0.5, 0.5, 0.5, 0.5);
 
   face[0] = fixed - offset;
-  face[0].color = vec4(0, 0, 0, 0);
+  face[0].color = vec4(0, 0, face[0].color.z, 0);
   face[1] = fixed + free1 - offset;
-  face[1].color = vec4(0, 1, 0, 0);
+  face[1].color = vec4(0, 1, face[1].color.z, 0);
   face[2] = fixed + free1 + free2 - offset;
-  face[2].color = vec4(1, 1, 0, 0);
+  face[2].color = vec4(1, 1, face[2].color.z, 0);
   face[3] = fixed + free2 - offset;
-  face[3].color = vec4(1, 0, 0, 0);
+  face[3].color = vec4(1, 0, face[3].color.z, 0);
 }
 
 static void mk4DCube(vec4 fixed, vec4 free1, vec4 free2, vec4 free3, TesseractVert *face) {

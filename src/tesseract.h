@@ -22,7 +22,7 @@ struct TesseractVert {
   TesseractVert(glm::vec4 loc) : loc(loc) {
     if (loc.y == 0.5) {
       // Green
-      color = glm::vec4(0.34765625, 0.59375, 0, 1);
+      color = glm::vec4(0.34765625, 0.59375, 1, 1);
     } else {
       // Brown
       color = glm::vec4(0.46875, 0.28125, 0, 1);
