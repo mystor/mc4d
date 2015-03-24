@@ -57,18 +57,6 @@ static void keyCallback(GLFWwindow* window, int key,
     case GLFW_KEY_ESCAPE: {
       glfwSetWindowShouldClose(window, GL_TRUE);
     } break;
-#if 0 // The wireframe projection doesn't work like this anymore due to multipass rendering
-    case GLFW_KEY_M: {
-      static bool lines = false;
-      if (lines) {
-        lines = !lines;
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-      } else {
-        lines = !lines;
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-      }
-    } break;
-#endif
       // Enable automatic rotation
     case GLFW_KEY_Z: WS.autorotXY = !WS.autorotXY; break;
     case GLFW_KEY_X: WS.autorotXZ = !WS.autorotXZ; break;
@@ -79,10 +67,6 @@ static void keyCallback(GLFWwindow* window, int key,
 
     case GLFW_KEY_COMMA: WS.displayWireframe = !WS.displayWireframe; break;
     case GLFW_KEY_PERIOD: WS.displayBlocks = !WS.displayBlocks; break;
-
-#if 0 // The orthoprojection looks really janky - disable it
-    case GLFW_KEY_O: WS.orthoProj = !WS.orthoProj; break;
-#endif
     }
   } else if (action == GLFW_RELEASE) {
     switch (key) {

@@ -109,19 +109,6 @@ void Tesseract::gen() {
   }
 #endif
 
-#if 0
-  if (Config::boolArg("print-face-verts")) {
-    // Print out the faces
-    for (size_t face=0; face<FACE_COUNT; face++) {
-      std::cout << "("
-                << faces[face * 4]
-                << faces[face * 4 + 1]
-                << faces[face * 4 + 2]
-                << faces[face * 4 + 3]
-                << ")\n";
-    }
-  }
-#endif
 }
 
 void Tesseract::linesWithOffset(glm::vec4 offset, glm::vec4 *out) {
