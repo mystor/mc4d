@@ -3,3 +3,5 @@
 #include "geomShader.h"
 #include "blendvertShader.h"
 #include "blendfragShader.h"
+#include "wirevertShader.h"
+#include "wirefragShader.h"

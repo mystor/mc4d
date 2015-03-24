@@ -30,9 +30,8 @@ static struct WorldState {
   bool orthoProj;
 
   GLuint solidBlocksFB, waterBlocksFB;
-  GLuint solidBlocksColorTex, solidBlocksDepthTex, waterBlocksColorTex, waterBlocksDepthTex;
-  GLuint solidBlocksTex, waterBlocksTex;
-  GLuint solidBlocksDepth, waterBlocksDepth;
+  GLuint solidBlocksColorTex, waterBlocksColorTex;
+  GLuint solidBlocksDepthTex;
 } WS;
 
 // If GLFW reports an error, this will be called
@@ -182,6 +181,7 @@ int main(int argc, char **argv)
   glErrChk("GLEW_ERROR (OK)");
 
   glEnable(GL_DEPTH_TEST);
+  glEnable(GL_LINE_SMOOTH);
 
   // Before we can create the world, we need to initialize the tesseract
   Tesseract::gen();
@@ -248,6 +248,28 @@ int main(int argc, char **argv)
   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 32, (void*) 16);
   GL_ERR_CHK;
 
+  glm::vec4 linesVerts[Tesseract::LINES_SIZE];
+  Tesseract::linesWithOffset(glm::vec4(0), linesVerts);
+  GLuint linesVAO, linesVBO;
+  glGenVertexArrays(1, &linesVAO);
+  glBindVertexArray(linesVAO);
+
+  // Create & Bind the linesVBO
+  glGenBuffers(1, &linesVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, linesVBO);
+
+  // Load the data
+  glBufferData(GL_ARRAY_BUFFER,
+               sizeof(linesVerts),
+               linesVerts,
+               GL_STATIC_DRAW);
+  GL_ERR_CHK;
+
+  // Set up the vertex attrib array
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
+  GL_ERR_CHK;
+
   // Create an initialize the GPU program which does basically all
   // of the actual rendering for the program
   ShaderProgram mainShader;
@@ -262,6 +284,12 @@ int main(int argc, char **argv)
   blendShader.createShader(GL_VERTEX_SHADER, blendvertGlsl);
   blendShader.createShader(GL_FRAGMENT_SHADER, blendfragGlsl);
   blendShader.link();
+  GL_ERR_CHK;
+
+  ShaderProgram wireShader;
+  wireShader.createShader(GL_VERTEX_SHADER, wirevertGlsl);
+  wireShader.createShader(GL_FRAGMENT_SHADER, wirefragGlsl);
+  wireShader.link();
   GL_ERR_CHK;
 
   WS.viewAngle = 45;
@@ -283,7 +311,14 @@ int main(int argc, char **argv)
   GLuint faceTexLoc = mainShader.uniformLocation("faceTex");
   GLuint srmLoc = mainShader.uniformLocation("srm");
 
-  blendShader.link();
+  // Wireframe Shader locations
+  GLuint wire_worldToEyeMat4DLoc = wireShader.uniformLocation("worldToEyeMat4D");
+  GLuint wire_recipTanViewAngleLoc = wireShader.uniformLocation("recipTanViewAngle");
+  GLuint wire_projMat3DLoc = wireShader.uniformLocation("projMat3D");
+  GLuint wire_eyeLoc = wireShader.uniformLocation("eye");
+  GLuint wire_forwardLoc = wireShader.uniformLocation("forward");
+  GLuint wire_srmLoc = wireShader.uniformLocation("srm");
+
   GLuint solidTexLoc = blendShader.uniformLocation("solidTex");
   GLuint waterTexLoc = blendShader.uniformLocation("waterTex");
 
@@ -408,8 +443,11 @@ int main(int argc, char **argv)
     glUniformMatrix4fv(projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D)); GL_ERR_CHK;
     glUniformMatrix4fv(srmLoc, 1, GL_FALSE, glm::value_ptr(srm)); GL_ERR_CHK;
 
+
+
     // Bind the tesseract VAO
     const size_t vaoSize = sizeof(verts)/sizeof(verts[0]);
+    const size_t linesVaoSize = sizeof(linesVerts)/sizeof(linesVerts[0]);
     glBindVertexArray(VAO);
 
     // Render the solid geometry to a texture, storing the depth values in the depth texture
@@ -459,6 +497,26 @@ int main(int argc, char **argv)
 
     // Draw the viewport
     view.draw();
+
+    if (true) {
+      wireShader.activate();
+      // Send the data to the wireframe shader
+      glUniform4fv(wire_eyeLoc, 1, glm::value_ptr(WS.eye)); GL_ERR_CHK;
+      glUniform4fv(wire_forwardLoc, 1, glm::value_ptr(WS.forward)); GL_ERR_CHK;
+      glUniform1f(wire_recipTanViewAngleLoc, invTanViewAngle); GL_ERR_CHK;
+      glUniformMatrix4fv(wire_worldToEyeMat4DLoc, 1, GL_FALSE, glm::value_ptr(worldToEyeMat4D)); GL_ERR_CHK;
+      glUniformMatrix4fv(wire_projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D)); GL_ERR_CHK;
+      glUniformMatrix4fv(wire_srmLoc, 1, GL_FALSE, glm::value_ptr(srm)); GL_ERR_CHK;
+
+      // Get rid of the depth buffer so it renders in front
+      glClear( GL_DEPTH_BUFFER_BIT );
+
+      // Draw away!
+      glBindVertexArray(linesVAO);
+      glDrawArrays(GL_LINES, 0, linesVaoSize);
+      GL_ERR_CHK;
+    }
+
     mainShader.activate();
 
     // Swap and poll events
