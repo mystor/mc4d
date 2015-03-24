@@ -25,7 +25,7 @@ enum HyperCubeTypes {
 static_assert(sizeof(HyperCubeTypes) == sizeof(uint8_t),
               "The HyperCubeTypes enum should only be 8 bits wide");
 
-static const int32_t DIM = 16;
+static const int32_t DIM = 15;
 static const int32_t WD_X = DIM;
 static const int32_t WD_Y = DIM;
 static const int32_t WD_Z = DIM;

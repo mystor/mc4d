@@ -1,4 +1,3 @@
-// #include "controls.h"
 #include "tesseract.h"
 #include "config.h"
 #include "gpuProgram.h"
@@ -109,17 +108,23 @@ int main(int argc, char **argv)
   GLint maxTextureSize;
   glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
   std::cout << "Max texture size: " << maxTextureSize << std::endl;
-  assert((uint32_t)maxTextureSize >= world->hypercubeLocs.size());
+  // assert((uint32_t)maxTextureSize >= world->hypercubeLocs.size());
 
+  // Ensure that the memory block is large enough
+  size_t height = (world->hypercubeLocs.size() + maxTextureSize - 1) / maxTextureSize;
+  world->hypercubeLocs.reserve(height * maxTextureSize);
+
+
+  std::cout << "height = " << height << ", width = " << maxTextureSize << "\n";
   // Create the texture!
   GLuint hypercubeLocsTex;
   glGenTextures(1, &hypercubeLocsTex);
-  glBindTexture(GL_TEXTURE_1D, hypercubeLocsTex);
-  glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA,
-               world->hypercubeLocs.size(),
+  glBindTexture(GL_TEXTURE_2D, hypercubeLocsTex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+               maxTextureSize, height,
                0, GL_RGBA, GL_FLOAT,
                world->hypercubeLocs.data());
-  glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   GL_ERR_CHK;
 
   // Noise generation for surfaces. Done using random noise
@@ -180,9 +185,8 @@ int main(int argc, char **argv)
   WS.viewAngle = 45;
   WS.up = glm::vec4(0, 1, 0, 0);
   WS.over = glm::vec4(0, 0, 1, 0);
-  // WS.eye = glm::vec4(-16, 16, 0, 0);
-  WS.eye = glm::vec4(-46, 40, 0, 0);
-  WS.forward = normalize(glm::vec4(1, -1, 0, 0)); // normalize(-WS.eye);
+  WS.eye = glm::vec4(-32, 0, 0, 0);
+  WS.forward = normalize(glm::vec4(1, 0, 0, 0)); // normalize(-WS.eye);
 
 
   // Get the location of the uniforms on the GPU
@@ -192,7 +196,9 @@ int main(int argc, char **argv)
   GLuint eyeLoc = mainShader.uniformLocation("eye");
   GLuint forwardLoc = mainShader.uniformLocation("forward");
   GLuint hypercubeLoc = mainShader.uniformLocation("hypercube");
-  GLuint hcCountLoc = mainShader.uniformLocation("hcCount");
+  // GLuint hcCountLoc = mainShader.uniformLocation("hcCount");
+  GLuint hcWidthLoc = mainShader.uniformLocation("hcWidth");
+  GLuint hcHeightLoc = mainShader.uniformLocation("hcHeight");
   GLuint faceTexLoc = mainShader.uniformLocation("faceTex");
 
   GLuint srmLoc = mainShader.uniformLocation("srm");
@@ -200,22 +206,27 @@ int main(int argc, char **argv)
   // Set the texture up
   glUniform1i(hypercubeLoc, 0);
   glActiveTexture(GL_TEXTURE0 + 0);
-  glBindTexture(GL_TEXTURE_1D, hypercubeLocsTex);
+  glBindTexture(GL_TEXTURE_2D, hypercubeLocsTex);
 
   // Send the count up to the GPU
-  glUniform1f(hcCountLoc, world->hypercubeLocs.size());
+  glUniform1i(hcWidthLoc, maxTextureSize);
+  glUniform1i(hcHeightLoc, height);
+  // glUniform1f(hcCountLoc, world->hypercubeLocs.size());
 
   // Set the texture up
   glUniform1i(faceTexLoc, 2);
   glActiveTexture(GL_TEXTURE0 + 2);
   glBindTexture(GL_TEXTURE_2D, faceTex);
 
-#define DUMP(a) std::cout << #a << " = " << a.x << ", " << a.y << ", " << a.z << ", " << a.w << "\n"
+#define DUMP(a) std::cout << #a << " = " << a.x << ",\t" << a.y << ",\t" << a.z << ",\t" << a.w << "\n"
 
   // Main loop
   double lastTime, thisTime, delta;
-  double rotYF = 0, rotXZ = 0;
-  double mouseX = -1, mouseY = -1;
+
+  // Rotation
+  double rotXY = 0, rotXZ = 0, rotXW = 0;
+  double rotYZ = 0, rotYW = 0, rotZW = 0;
+
   lastTime = glfwGetTime();
   while (!glfwWindowShouldClose(window)) {
     // Calculate the time delta
@@ -233,54 +244,26 @@ int main(int argc, char **argv)
     glClearColor( 77.0/255, 219.0/255, 213.0/255, 1.0 );
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-    double cursorX, cursorY;
-    glfwGetCursorPos(window, &cursorX, &cursorY);
-    if (abs(cursorX - mouseX) > 1 || abs(cursorY != mouseY) > 1) {
-      // std::cout << mouseX - cursorX << " " << mouseY - cursorY << "\n";
-
-      int windowWidth, windowHeight;
-      glfwGetWindowSize(window, &windowWidth, &windowHeight);
-      // glm::vec2 cent(windowWidth/2, windowHeight/2.0);
-
-      rotXZ += (cursorX - mouseX) / windowWidth * 2;
-
-      // glfwSetCursorPos(window, cent.x, cent.y);
-
-      // mouseX = cent.x, mouseY = cent.y;
-      mouseX = cursorX, mouseY = cursorY;
-    }
-
-    glm::mat4 xzrotmat = glm::mat4(cosf(rotXZ), 0, sinf(rotXZ), 0,
-                                   0, 1, 0, 0,
-                                   -sinf(rotXZ), 0, cosf(rotXZ), 0,
-                                   0, 0, 0, 1);
-    /* WS.forward = glm::vec4(1, 0, 0, 0) * xzrotmat;
-    WS.over = glm::vec4(0, 0, 1, 0) * xzrotmat;
-    std::cout << WS.forward.x << "," << WS.forward.y << "," << WS.forward.z << "," << WS.forward.w << std::endl;
     // World state updating */
     {
-      const float SPEED = 0.25;
+      const float SPEED = 1.00;
       // Get the component of forward perpendicular to up
       glm::vec4 perpForward = normalize(WS.forward - (glm::dot(WS.up, WS.forward) * WS.up));
-      // Move!
-      if (glfwGetKey(window, GLFW_KEY_W)) {
-        WS.eye += perpForward * SPEED;
+
+#define ADJUST(uk, dk, var) if (glfwGetKey(window, GLFW_KEY_##uk)) {\
+        var += SPEED * delta; \
+      }\
+      if (glfwGetKey(window, GLFW_KEY_##dk)) {\
+        var -= SPEED * delta;\
       }
-      if (glfwGetKey(window, GLFW_KEY_A)) {
-        WS.eye += WS.over * SPEED;
-      }
-      if (glfwGetKey(window, GLFW_KEY_S)) {
-        WS.eye -= perpForward * SPEED;
-      }
-      if (glfwGetKey(window, GLFW_KEY_D)) {
-        WS.eye -= WS.over * SPEED;
-      }
-      if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-        WS.eye += WS.up * SPEED;
-      }
-      if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
-        WS.eye -= WS.up * SPEED;
-      }
+
+      ADJUST(Q, A, rotXY);
+      ADJUST(W, S, rotXZ);
+      ADJUST(E, D, rotXW);
+      ADJUST(R, F, rotYZ);
+      ADJUST(T, G, rotYW);
+      ADJUST(Y, H, rotZW);
+#undef ADJUST
     }
 
     // Calculate projecton stuff
@@ -290,32 +273,32 @@ int main(int argc, char **argv)
     // Value required for the 3D->2D projection
     glm::mat4 projMat3D = calcProjMat3D(WS.viewAngle, ratio);
 
-    float R = thisTime;
-    // R = 0;
-#if 1
-    glm::mat4 srm = glm::mat4(cosf(R), 0, sinf(R), 0,
-                              0, 1, 0, 0,
-                              -sinf(R), 0, cosf(R), 0,
-                              0, 0, 0, 1);
-#else
-    glm::mat4 srm = glm::mat4(cosf(R), 0, 0, sinf(R),
-                              0, 1, 0, 0,
-                              0, 0, 1, 0,
-                              -sinf(R), 0, 0, cosf(R));
-    R *= 1.5;
-    srm *= glm::mat4(cosf(R), 0, sinf(R), 0,
-                     0, 1, 0, 0,
-                     -sinf(R), 0, cosf(R), 0,
-                     0, 0, 0, 1);
-    R *= 1/3;
-    srm *= glm::mat4(1, 0, 0, 0,
-                     0, 1, 0, 0,
-                     0, 0, cosf(R), sinf(R),
-                     0, 0, -sinf(R), cosf(R));
-#endif
-    // DUMP(WS.eye);
-
-    DUMP((-WS.eye * worldToEyeMat4D));
+    // Create the scene rotation matrix
+    glm::mat4 srm =
+      glm::mat4(cosf(rotXY), sinf(rotXY), 0, 0,
+                -sinf(rotXY), cosf(rotXY), 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1) *
+      glm::mat4(cosf(rotXZ), 0, sinf(rotXZ), 0,
+                0, 1, 0, 0,
+                -sinf(rotXZ), 0, cosf(rotXZ), 0,
+                0, 0, 0, 1) *
+      glm::mat4(cosf(rotXW), 0, 0, sinf(rotXW),
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                -sinf(rotXW), 0, 0, cosf(rotXW)) *
+      glm::mat4(1, 0, 0, 0,
+                0, cosf(rotYZ), sinf(rotYZ), 0,
+                0, -sinf(rotYZ), cosf(rotYZ), 0,
+                0, 0, 0, 1) *
+      glm::mat4(1, 0, 0, 0,
+                0, cosf(rotYW), 0, sinf(rotYW),
+                0, 0, 1, 0,
+                0, -sinf(rotYW), 0, cosf(rotYW)) *
+      glm::mat4(1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, cosf(rotZW), sinf(rotZW),
+                0, 0, -sinf(rotZW), cosf(rotZW));
 
     // Sending data to the GPU
     glUniform4fv(eyeLoc, 1, glm::value_ptr(WS.eye)); GL_ERR_CHK;
@@ -330,8 +313,7 @@ int main(int argc, char **argv)
     glDrawArraysInstanced(GL_TRIANGLES, 0, sizeof(verts)/sizeof(verts[0]), world->hypercubeLocs.size());
     GL_ERR_CHK;
 
-    // world->draw();
-
+    // Swap and poll events
     glfwSwapBuffers(window);
     glfwPollEvents();
 

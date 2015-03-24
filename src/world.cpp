@@ -11,9 +11,9 @@ static inline double noiseSample(glm::dvec4 loc) {
 
 HyperCubeTypes World::worldSample(int32_t x, int32_t y, int32_t z, int32_t w) {
   if (x < 0 || y < 0 || z < 0 || w < 0) {
-    return HCT_STONE;
+    return HCT_AIR;// TONE;
   } else if (x >= WD_X || y >= WD_Y || z >= WD_Z || w >= WD_W) {
-    return HCT_STONE;
+    return HCT_AIR;
   } else {
     return hypercubes[x][y][z][w];
   }
