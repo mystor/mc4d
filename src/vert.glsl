@@ -37,16 +37,11 @@ vec4 projectTo3D()
   realPosition -= vec4(8, 8, 8, 8);
   realPosition *= srm;
 
-  // Get the position in eye-space (offset)
+  // Get the position in eye-space
   vec4 eyePos = (realPosition - eye) * worldToEyeMat4D;
-  // vec4 eyePos2 = eyePos * worldToEyeMat4D;
 
-  /* if (eyePos2.w <= 0) {
-    vcolor.w = 1;
-    } */
-
-  float scale = recipTanViewAngle / eyePos.w; // dot(eyePos, worldToEyeMat4D[3]);
-
+  // Scale for perspective
+  float scale = recipTanViewAngle / eyePos.w;
   return vec4(scale * eyePos.xyz, 1);
 }
 

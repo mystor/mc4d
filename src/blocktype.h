@@ -19,25 +19,25 @@ struct BlockType {
   size_t count;
   float indicator;
 
-  BlockType(std::vector<glm::vec4> *pts, float indicator) {
+  BlockType(std::vector<glm::vec4> *pts, float ind) {
+    count = pts->size();
+    indicator = ind;
+
     GLint maxTextureSize;
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
 
+    std::cout << "Texture " << tex << " has " << count << " tesseracts\n";
     // Ensure that we have a small enough set
-    assert((GLint) pts->size() < maxTextureSize);
+    assert((GLint) count < maxTextureSize);
 
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_1D, tex);
     glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA,
-                 pts->size(),
+                 count,
                  0, GL_RGBA, GL_FLOAT,
                  pts->data());
     glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     GL_ERR_CHK;
-
-    count = pts->size();
-    std::cout << "Texture " << tex << " has " << count << " tesseracts\n";
-    this->indicator = indicator;
   }
 
   void bind(GLuint texLoc, GLuint countLoc, GLuint indLoc) {

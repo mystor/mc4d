@@ -19,6 +19,10 @@
 
 enum HyperCubeTypes {
   HCT_AIR,
+  HCT_WATER,
+
+  HCT_SOLID_START,
+
   HCT_STONE,
   HCT_GRASS
 } __attribute__((packed));
@@ -26,7 +30,7 @@ enum HyperCubeTypes {
 static_assert(sizeof(HyperCubeTypes) == sizeof(uint8_t),
               "The HyperCubeTypes enum should only be 8 bits wide");
 
-static const int32_t DIM = 15;
+static const int32_t DIM = 17;
 static const int32_t WD_X = DIM;
 static const int32_t WD_Y = DIM;
 static const int32_t WD_Z = DIM;
@@ -41,10 +45,9 @@ class World {
 
   HyperCubeTypes worldSample(int32_t x, int32_t y, int32_t z, int32_t w);
 public:
-  std::vector<glm::vec4> hypercubeLocs;
-
   std::vector<glm::vec4> stoneLocs;
   std::vector<glm::vec4> grassLocs;
+  std::vector<glm::vec4> waterLocs;
 
   World();
 

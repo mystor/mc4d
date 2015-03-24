@@ -25,6 +25,8 @@ static struct WorldState {
   glm::vec4 forward;
 
   bool autorotXY, autorotXZ, autorotXW, autorotYZ, autorotYW, autorotZW;
+
+  bool orthoProj;
 } WS;
 
 // If GLFW reports an error, this will be called
@@ -60,6 +62,8 @@ static void keyCallback(GLFWwindow* window, int key,
     case GLFW_KEY_V: WS.autorotYZ = !WS.autorotYZ; break;
     case GLFW_KEY_B: WS.autorotYW = !WS.autorotYW; break;
     case GLFW_KEY_N: WS.autorotZW = !WS.autorotZW; break;
+
+    case GLFW_KEY_O: WS.orthoProj = !WS.orthoProj; break;
     }
   } else if (action == GLFW_RELEASE) {
     switch (key) {
@@ -105,6 +109,8 @@ int main(int argc, char **argv)
   glErrChk("GLEW_ERROR (OK)");
 
   glEnable(GL_DEPTH_TEST);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   // Before we can create the world, we need to initialize the tesseract
   Tesseract::gen();
@@ -121,6 +127,7 @@ int main(int argc, char **argv)
   // Create the grass and stone blocks
   BlockType grassBlock(&world->grassLocs, 1);
   BlockType stoneBlock(&world->stoneLocs, 0);
+  BlockType waterBlock(&world->waterLocs, 2);
 
   // Noise generation for surfaces. Done using random noise
   float faceTexPts[16*16];
@@ -251,6 +258,15 @@ int main(int argc, char **argv)
       ADJUST(T, G, rotYW);
       ADJUST(Y, H, rotZW);
 #undef ADJUST
+
+      const float ZOOM_SPEED = 5.00;
+
+      if (glfwGetKey(window, GLFW_KEY_EQUAL) && WS.eye.x < -16) {
+        WS.eye.x += ZOOM_SPEED * delta;
+      }
+      if (glfwGetKey(window, GLFW_KEY_MINUS) && WS.eye.x > -50) {
+        WS.eye.x -= ZOOM_SPEED * delta;
+      }
     }
 
     // Calculate projecton stuff
@@ -258,7 +274,7 @@ int main(int argc, char **argv)
     float invTanViewAngle = calcInvTanViewAngle(WS.viewAngle);
 
     // Value required for the 3D->2D projection
-    glm::mat4 projMat3D = calcProjMat3D(WS.viewAngle, ratio);
+    glm::mat4 projMat3D = calcProjMat3D(WS.viewAngle, ratio, WS.orthoProj);
 
     // Create the scene rotation matrix
     glm::mat4 srm =
@@ -295,15 +311,21 @@ int main(int argc, char **argv)
     glUniformMatrix4fv(projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D)); GL_ERR_CHK;
     glUniformMatrix4fv(srmLoc, 1, GL_FALSE, glm::value_ptr(srm)); GL_ERR_CHK;
 
-
-    // Draw the tesseracts!
-    grassBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+    // Bind the tesseract VAO
+    const size_t vaoSize = sizeof(verts)/sizeof(verts[0]);
     glBindVertexArray(VAO);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, sizeof(verts)/sizeof(verts[0]), grassBlock.count);
+
+    // Bind & draw the different block types
+    grassBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, grassBlock.count);
     GL_ERR_CHK;
 
     stoneBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, sizeof(verts)/sizeof(verts[0]), stoneBlock.count);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, stoneBlock.count);
+    GL_ERR_CHK;
+
+    waterBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, waterBlock.count);
     GL_ERR_CHK;
 
     // Swap and poll events

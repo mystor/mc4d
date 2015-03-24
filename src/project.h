@@ -20,7 +20,7 @@ glm::mat4 calcWorldToEyeMat4D(glm::vec4 up, glm::vec4 over, glm::vec4 forward);
 float calcInvTanViewAngle(float viewAngle);
 
 // Value required for the 3D->2D projection
-glm::mat4 calcProjMat3D(float viewAngle, float aspectRatio);
+glm::mat4 calcProjMat3D(float viewAngle, float aspectRatio, bool ortho);
 // glm::mat4 calcProjMat3D(glm::vec3 eye, glm::vec3 up, glm::vec3 forward);
 
 #endif // defined(__project_h)

@@ -16,7 +16,12 @@ void main()
 {
   vec3 nNormal = abs(normal);
   fragColour = vec4(0.5, 0.5, 0.5, 1) -
-    vec4(0.1, 0.1, 0.1, 1) * (texture(faceTex, color.rg).r + dot(nNormal, lightDir));
-  fragColour.g += 0.5 * color.b * hcIndicator;
-  // fragColour = vec4(0, 1, 0, 1);
+    vec4(0.1, 0.1, 0.1, 0) * (texture(faceTex, color.rg).r + dot(nNormal, lightDir));
+
+  if (hcIndicator == 1) { // Grass
+    fragColour.g += clamp(color.b - 0.5, 0, 1);
+  } else if (hcIndicator == 2) { // Water
+    fragColour.b += 0.5;
+    fragColour.a = 0.5;
+  }
 }

@@ -56,8 +56,24 @@ World::World() {
         }
       }
     }
+    std::cout << x << "/" << WORLD_DIM.x << "\n";
   }
   std::cout << "Done growing grass" << std::endl;
+
+  std::cout << "Filling ponds" << std::endl;
+  for (x=0; x<WORLD_DIM.x; x++) {
+    for (y=0; y<WORLD_DIM.y / 2; y++) { // Only half filled with water
+      for (z=0; z<WORLD_DIM.z; z++) {
+        for (w=0; w<WORLD_DIM.w; w++) {
+          if (hypercubes[x][y][z][w] == HCT_AIR) {
+            hypercubes[x][y][z][w] = HCT_WATER;
+          }
+        }
+      }
+    }
+    std::cout << x << "/" << WORLD_DIM.x << "\n";
+  }
+  std::cout << "Done filling ponds" << std::endl;
 
   std::cout << "Starting mesh generation" << std::endl;
 
@@ -67,14 +83,14 @@ World::World() {
         for (w=0; w<WORLD_DIM.w; w++) {
           HyperCubeTypes hct = hypercubes[x][y][z][w];
 
-#define SURROUNDED (worldSample(x-1, y, z, w) != HCT_AIR && \
-                    worldSample(x+1, y, z, w) != HCT_AIR && \
-                    worldSample(x, y-1, z, w) != HCT_AIR && \
-                    worldSample(x, y+1, z, w) != HCT_AIR && \
-                    worldSample(x, y, z-1, w) != HCT_AIR && \
-                    worldSample(x, y, z+1, w) != HCT_AIR && \
-                    worldSample(x, y, z, w-1) != HCT_AIR && \
-                    worldSample(x, y, z, w+1) != HCT_AIR)
+#define SURROUNDED (worldSample(x-1, y, z, w) >= HCT_SOLID_START && \
+                    worldSample(x+1, y, z, w) >= HCT_SOLID_START && \
+                    worldSample(x, y-1, z, w) >= HCT_SOLID_START && \
+                    worldSample(x, y+1, z, w) >= HCT_SOLID_START && \
+                    worldSample(x, y, z-1, w) >= HCT_SOLID_START && \
+                    worldSample(x, y, z+1, w) >= HCT_SOLID_START && \
+                    worldSample(x, y, z, w-1) >= HCT_SOLID_START && \
+                    worldSample(x, y, z, w+1) >= HCT_SOLID_START)
 
           switch (hct) {
           case HCT_AIR:
@@ -87,6 +103,11 @@ World::World() {
           case HCT_STONE:
             if (!SURROUNDED) {
               stoneLocs.push_back(glm::vec4(x, y, z, w));
+            }
+            break;
+          case HCT_WATER:
+            if (!SURROUNDED) {
+              waterLocs.push_back(glm::vec4(x, y, z, w));
             }
             break;
           }

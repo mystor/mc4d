@@ -44,23 +44,25 @@ float calcInvTanViewAngle(float viewAngle) {
 }
 
 
-mat4 calcProjMat3D(float viewAngle, float aspectRatio) {
-#if 1
-  mat4 projection = perspective(viewAngle,
-                                aspectRatio,
-                                0.1f,
-                                100.0f);
+mat4 calcProjMat3D(float viewAngle, float aspectRatio, bool orthoProj) {
+  mat4 projection, view;
+  if (orthoProj) {
+    projection = ortho(-1, 1,
+                       -1, 1,
+                       -1, 1);
 
-  mat4 view = lookAt(vec3(4, 0, 0),
-                     vec3(0, 0, 0),
-                     vec3(0, -1, 0));
-#else
-  mat4 projection = ortho(-1, 1, -1, 1, -1, 1);
-
-  mat4 view = lookAt(vec3(0, 0, 0),
-                     vec3(-1, 0, 0),
-                     vec3(0, -1, 0));
-#endif
+    view = lookAt(vec3(0, 0, 0),
+                  vec3(-1, 0, 0),
+                  vec3(0, -1, 0));
+  } else {
+    projection = perspective(viewAngle,
+                             aspectRatio,
+                             0.1f,
+                             100.0f);
+    view = lookAt(vec3(4, 0, 0),
+                  vec3(0, 0, 0),
+                  vec3(0, -1, 0));
+  }
 
   return projection * view;
 }
