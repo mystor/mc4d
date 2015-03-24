@@ -10,7 +10,7 @@ mc4d: src/shaders.h $(FILES)
 
 # Ensure that the shader headers have been built before the main program is compiled
 # If we don't do this, then after cleaning the shaders won't exist and building will fail
-src/shaders.h: src/vertShader.h src/fragShader.h src/geomShader.h
+src/shaders.h: src/vertShader.h src/fragShader.h src/geomShader.h src/blendvertShader.h src/blendfragShader.h
 
 # Pull in generated dependency information for existing .o files
 -include $(FILES:.o=.d)
@@ -48,3 +48,13 @@ src/geomShader.h: src/geom.glsl
 	echo "char geomGlsl[] = {" > src/geomShader.h
 	xxd -i < src/geom.glsl >> src/geomShader.h
 	echo ", 0x00\n};" >> src/geomShader.h
+
+src/blendvertShader.h: src/blendvert.glsl
+	echo "char blendvertGlsl[] = {" > src/blendvertShader.h
+	xxd -i < src/blendvert.glsl >> src/blendvertShader.h
+	echo ", 0x00\n};" >> src/blendvertShader.h
+
+src/blendfragShader.h: src/blendfrag.glsl
+	echo "char blendfragGlsl[] = {" > src/blendfragShader.h
+	xxd -i < src/blendfrag.glsl >> src/blendfragShader.h
+	echo ", 0x00\n};" >> src/blendfragShader.h

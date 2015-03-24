@@ -1,3 +1,5 @@
 #include "fragShader.h"
 #include "vertShader.h"
 #include "geomShader.h"
+#include "blendvertShader.h"
+#include "blendfragShader.h"

@@ -110,6 +110,9 @@ World::World() {
               waterLocs.push_back(glm::vec4(x, y, z, w));
             }
             break;
+          default:
+            std::cerr << "INVALID BLOCK TYPE " << hct << "\n";
+            exit(-1);
           }
         }
       }

@@ -1,4 +1,5 @@
 #include "tesseract.h"
+#include "viewport.h"
 #include "config.h"
 #include "gpuProgram.h"
 #include "world.h"
@@ -27,6 +28,11 @@ static struct WorldState {
   bool autorotXY, autorotXZ, autorotXW, autorotYZ, autorotYW, autorotZW;
 
   bool orthoProj;
+
+  GLuint solidBlocksFB, waterBlocksFB;
+  GLuint solidBlocksColorTex, solidBlocksDepthTex, waterBlocksColorTex, waterBlocksDepthTex;
+  GLuint solidBlocksTex, waterBlocksTex;
+  GLuint solidBlocksDepth, waterBlocksDepth;
 } WS;
 
 // If GLFW reports an error, this will be called
@@ -71,6 +77,69 @@ static void keyCallback(GLFWwindow* window, int key,
   }
 }
 
+static void resizeCallback(GLFWwindow *, int width, int height)
+{
+  glBindTexture(GL_TEXTURE_2D, WS.waterBlocksColorTex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+
+  glBindTexture(GL_TEXTURE_2D, WS.solidBlocksColorTex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+
+  glBindTexture(GL_TEXTURE_2D, WS.solidBlocksDepthTex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+
+  GL_ERR_CHK;
+}
+
+static void generateFrameBufferThingy(GLuint &color_tex, GLuint &depth_tex, GLuint &fb, int width, int height, bool genDepth)
+{
+  //RGBA8 2D texture, 24 bit depth texture, 256x256
+  glGenTextures(1, &color_tex);
+  glBindTexture(GL_TEXTURE_2D, color_tex);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  GL_ERR_CHK;
+  //NULL means reserve texture memory, but texels are undefined
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+  if (genDepth) {
+    glGenTextures(1, &depth_tex);
+    glBindTexture(GL_TEXTURE_2D, depth_tex);
+    GL_ERR_CHK;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); GL_ERR_CHK;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); GL_ERR_CHK;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); GL_ERR_CHK;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); GL_ERR_CHK;
+    // glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY); GL_ERR_CHK;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE); GL_ERR_CHK;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL); GL_ERR_CHK;
+    //NULL means reserve texture memory, but texels are undefined
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+  }
+  //-------------------------
+  glGenFramebuffersEXT(1, &fb);
+  glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb);
+  //Attach 2D texture to this FBO
+  glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, color_tex, 0/*mipmap level*/);
+  //-------------------------
+  //Attach depth texture to FBO
+  glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, depth_tex, 0/*mipmap level*/);
+  //-------------------------
+  //Does the GPU support current FBO configuration?
+  GLenum status;
+  status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+  switch(status)
+  {
+  case GL_FRAMEBUFFER_COMPLETE_EXT:
+    return;
+  default:
+    std::cerr << "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT = " << GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT << "\n";
+    std::cerr << "Status " << status << " when checking Framebuffer Status\n";
+  }
+  GL_ERR_CHK;
+}
+
 int main(int argc, char **argv)
 {
   Config::init(argc, argv);
@@ -109,8 +178,10 @@ int main(int argc, char **argv)
   glErrChk("GLEW_ERROR (OK)");
 
   glEnable(GL_DEPTH_TEST);
+#if 0
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#endif
 
   // Before we can create the world, we need to initialize the tesseract
   Tesseract::gen();
@@ -118,6 +189,8 @@ int main(int argc, char **argv)
 
   // The world is heap allocated because otherwise it will blow out the stack
   std::unique_ptr<World> world(new World());
+
+  View view;
 
   // Get the maximum texture size
   GLint maxTextureSize;
@@ -184,6 +257,12 @@ int main(int argc, char **argv)
   mainShader.activate();
   GL_ERR_CHK;
 
+  ShaderProgram blendShader;
+  blendShader.createShader(GL_VERTEX_SHADER, blendvertGlsl);
+  blendShader.createShader(GL_FRAGMENT_SHADER, blendfragGlsl);
+  blendShader.link();
+  GL_ERR_CHK;
+
   WS.viewAngle = 45;
   WS.up = glm::vec4(0, 1, 0, 0);
   WS.over = glm::vec4(0, 0, 1, 0);
@@ -201,8 +280,89 @@ int main(int argc, char **argv)
   GLuint hcCountLoc = mainShader.uniformLocation("hcCount");
   GLuint hcIndicatorLoc = mainShader.uniformLocation("hcIndicator");
   GLuint faceTexLoc = mainShader.uniformLocation("faceTex");
-
   GLuint srmLoc = mainShader.uniformLocation("srm");
+
+  blendShader.link();
+  GLuint solidTexLoc = blendShader.uniformLocation("solidTex");
+  GLuint waterTexLoc = blendShader.uniformLocation("waterTex");
+
+  GL_ERR_CHK;
+  blendShader.activate();
+  {
+#if 1
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+
+    generateFrameBufferThingy(WS.solidBlocksColorTex, WS.solidBlocksDepthTex, WS.solidBlocksFB,
+                              width, height, true);
+    generateFrameBufferThingy(WS.waterBlocksColorTex, WS.solidBlocksDepthTex, WS.waterBlocksFB,
+                              width, height, false);
+
+    glfwSetFramebufferSizeCallback(window, resizeCallback);
+#else
+
+
+
+    /***** Frame Buffer Setup *****/
+    // Create & set up the textures for double-rendering
+    glGenFramebuffers(1, &WS.solidBlocksFB);
+    glGenFramebuffers(1, &WS.waterBlocksFB);
+    glGenTextures(1, &WS.solidBlocksTex);
+    glGenTextures(1, &WS.waterBlocksTex);
+
+    // Create the textures
+    // SOLID
+    glUniform1i(solidTexLoc, 4);
+    GL_ERR_CHK;
+    glActiveTexture(GL_TEXTURE0 + 4);
+    glBindFramebuffer(GL_FRAMEBUFFER, WS.solidBlocksFB);
+    glBindTexture(GL_TEXTURE_2D, WS.solidBlocksTex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    GL_ERR_CHK;
+
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, WS.solidBlocksFB, 0);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+      std::cerr << "There was a problem setting up the framebuffer!\n";
+      exit(-1);
+    }
+
+
+    // WATER
+    glUniform1i(waterTexLoc, 4);
+    GL_ERR_CHK;
+    glActiveTexture(GL_TEXTURE0 + 6);
+    glBindFramebuffer(GL_FRAMEBUFFER, WS.waterBlocksFB);
+    glBindTexture(GL_TEXTURE_2D, WS.waterBlocksTex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    GL_ERR_CHK;
+
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, WS.waterBlocksFB, 0);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+      std::cerr << "There was a problem setting up the framebuffer!\n";
+      exit(-1);
+    }
+
+    GL_ERR_CHK;
+
+    // Fire a resize event to get the texture memory set up correctly
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    resizeCallback(window, width, height);
+    glfwSetFramebufferSizeCallback(window, resizeCallback);
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+      std::cerr << "There was a problem setting up the framebuffer!\n";
+      exit(-1);
+    }
+#endif
+  }
+  GL_ERR_CHK;
+  mainShader.activate();
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
   // Set the texture up
   glUniform1i(faceTexLoc, 2);
@@ -315,6 +475,11 @@ int main(int argc, char **argv)
     const size_t vaoSize = sizeof(verts)/sizeof(verts[0]);
     glBindVertexArray(VAO);
 
+    mainShader.activate();
+    // Render to the screen
+    glBindFramebuffer(GL_FRAMEBUFFER, WS.solidBlocksFB);
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
     // Bind & draw the different block types
     grassBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
     glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, grassBlock.count);
@@ -324,9 +489,25 @@ int main(int argc, char **argv)
     glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, stoneBlock.count);
     GL_ERR_CHK;
 
+    glBindFramebuffer(GL_FRAMEBUFFER, WS.waterBlocksFB);
+    glClear( GL_COLOR_BUFFER_BIT ); // Don't clear depth, so we can use it to cull!
+
     waterBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
     glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, waterBlock.count);
     GL_ERR_CHK;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    blendShader.activate();
+    glActiveTexture(GL_TEXTURE0 + 4);
+    glBindTexture(GL_TEXTURE_2D, WS.solidBlocksColorTex);
+    glUniform1i(solidTexLoc, 4);
+    glActiveTexture(GL_TEXTURE0 + 6);
+    glBindTexture(GL_TEXTURE_2D, WS.waterBlocksColorTex);
+    glUniform1i(waterTexLoc, 6);
+
+    view.draw();
+    mainShader.activate();
 
     // Swap and poll events
     glfwSwapBuffers(window);

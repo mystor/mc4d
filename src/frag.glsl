@@ -10,6 +10,7 @@ uniform float hcIndicator;
 in vec4 color;
 in vec3 normal;
 
+//layout(location=0)
 out vec4 fragColour;
 
 void main()
@@ -24,4 +25,7 @@ void main()
     fragColour.b += 0.5;
     fragColour.a = 0.5;
   }
+
+  // Store the depth in the alpha channel
+  // fragColour.a = gl_FragCoord.z;
 }
