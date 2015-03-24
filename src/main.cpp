@@ -25,13 +25,20 @@ static struct WorldState {
   glm::vec4 eye;
   glm::vec4 forward;
 
+  // Rotate automatically
   bool autorotXY, autorotXZ, autorotXW, autorotYZ, autorotYW, autorotZW;
 
+  // Project using orthographic rather than projection
+  // NOTE(michael): Disabled
   bool orthoProj;
+
+  // Display the scene
+  bool displayBlocks, displayWireframe;
+
 
   GLuint solidBlocksFB, waterBlocksFB;
   GLuint solidBlocksColorTex, waterBlocksColorTex;
-  GLuint solidBlocksDepthTex;
+  GLuint blocksDepthTex;
 } WS;
 
 // If GLFW reports an error, this will be called
@@ -70,6 +77,9 @@ static void keyCallback(GLFWwindow* window, int key,
     case GLFW_KEY_B: WS.autorotYW = !WS.autorotYW; break;
     case GLFW_KEY_N: WS.autorotZW = !WS.autorotZW; break;
 
+    case GLFW_KEY_COMMA: WS.displayWireframe = !WS.displayWireframe; break;
+    case GLFW_KEY_PERIOD: WS.displayBlocks = !WS.displayBlocks; break;
+
 #if 0 // The orthoprojection looks really janky - disable it
     case GLFW_KEY_O: WS.orthoProj = !WS.orthoProj; break;
 #endif
@@ -88,7 +98,7 @@ static void resizeCallback(GLFWwindow *, int width, int height)
   glBindTexture(GL_TEXTURE_2D, WS.solidBlocksColorTex);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
 
-  glBindTexture(GL_TEXTURE_2D, WS.solidBlocksDepthTex);
+  glBindTexture(GL_TEXTURE_2D, WS.blocksDepthTex);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
 
   GL_ERR_CHK;
@@ -292,12 +302,15 @@ int main(int argc, char **argv)
   wireShader.link();
   GL_ERR_CHK;
 
+  // Default world state values
   WS.viewAngle = 45;
   WS.up = glm::vec4(0, 1, 0, 0);
   WS.over = glm::vec4(0, 0, 1, 0);
   WS.eye = glm::vec4(-32, 0, 0, 0);
   WS.forward = normalize(glm::vec4(1, 0, 0, 0)); // normalize(-WS.eye);
 
+  WS.displayBlocks = true;
+  WS.displayWireframe = false;
 
   // Get the location of the uniforms on the GPU
   GLuint worldToEyeMat4DLoc = mainShader.uniformLocation("worldToEyeMat4D");
@@ -319,6 +332,7 @@ int main(int argc, char **argv)
   GLuint wire_forwardLoc = wireShader.uniformLocation("forward");
   GLuint wire_srmLoc = wireShader.uniformLocation("srm");
 
+  // The textures for the blending shader
   GLuint solidTexLoc = blendShader.uniformLocation("solidTex");
   GLuint waterTexLoc = blendShader.uniformLocation("waterTex");
 
@@ -328,9 +342,9 @@ int main(int argc, char **argv)
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
 
-    generateFrameBuffer(WS.solidBlocksColorTex, WS.solidBlocksDepthTex, WS.solidBlocksFB,
+    generateFrameBuffer(WS.solidBlocksColorTex, WS.blocksDepthTex, WS.solidBlocksFB,
                         width, height, true);
-    generateFrameBuffer(WS.waterBlocksColorTex, WS.solidBlocksDepthTex, WS.waterBlocksFB,
+    generateFrameBuffer(WS.waterBlocksColorTex, WS.blocksDepthTex, WS.waterBlocksFB,
                         width, height, false);
 
     glfwSetFramebufferSizeCallback(window, resizeCallback);
@@ -435,70 +449,76 @@ int main(int argc, char **argv)
                 0, 0, cosf(rotZW), sinf(rotZW),
                 0, 0, -sinf(rotZW), cosf(rotZW));
 
-    // Sending data to the GPU
-    glUniform4fv(eyeLoc, 1, glm::value_ptr(WS.eye)); GL_ERR_CHK;
-    glUniform4fv(forwardLoc, 1, glm::value_ptr(WS.forward)); GL_ERR_CHK;
-    glUniform1f(recipTanViewAngleLoc, invTanViewAngle); GL_ERR_CHK;
-    glUniformMatrix4fv(worldToEyeMat4DLoc, 1, GL_FALSE, glm::value_ptr(worldToEyeMat4D)); GL_ERR_CHK;
-    glUniformMatrix4fv(projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D)); GL_ERR_CHK;
-    glUniformMatrix4fv(srmLoc, 1, GL_FALSE, glm::value_ptr(srm)); GL_ERR_CHK;
-
-
-
-    // Bind the tesseract VAO
     const size_t vaoSize = sizeof(verts)/sizeof(verts[0]);
     const size_t linesVaoSize = sizeof(linesVerts)/sizeof(linesVerts[0]);
-    glBindVertexArray(VAO);
 
-    // Render the solid geometry to a texture, storing the depth values in the depth texture
-    // which is shared between the solid block frame buffer and the water frame buffer.
-    mainShader.activate();
-    glClearColor( 77.0/255, 219.0/255, 213.0/255, 1.0 );
-    glBindFramebuffer(GL_FRAMEBUFFER, WS.solidBlocksFB);
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    if (WS.displayBlocks) {
+      mainShader.activate();
+      // Sending data to the GPU
+      glUniform4fv(eyeLoc, 1, glm::value_ptr(WS.eye)); GL_ERR_CHK;
+      glUniform4fv(forwardLoc, 1, glm::value_ptr(WS.forward)); GL_ERR_CHK;
+      glUniform1f(recipTanViewAngleLoc, invTanViewAngle); GL_ERR_CHK;
+      glUniformMatrix4fv(worldToEyeMat4DLoc, 1, GL_FALSE, glm::value_ptr(worldToEyeMat4D)); GL_ERR_CHK;
+      glUniformMatrix4fv(projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D)); GL_ERR_CHK;
+      glUniformMatrix4fv(srmLoc, 1, GL_FALSE, glm::value_ptr(srm)); GL_ERR_CHK;
 
-    // Bind & draw the different block types
-    grassBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, grassBlock.count);
-    GL_ERR_CHK;
+      // Bind the tesseract VAO
+      glBindVertexArray(VAO);
 
-    sandBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, sandBlock.count);
-    GL_ERR_CHK;
+      // Render the solid geometry to a texture, storing the depth values in the depth texture
+      // which is shared between the solid block frame buffer and the water frame buffer.
+      mainShader.activate();
+      glClearColor( 77.0/255, 219.0/255, 213.0/255, 1.0 );
+      glBindFramebuffer(GL_FRAMEBUFFER, WS.solidBlocksFB);
+      glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-    stoneBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, stoneBlock.count);
-    GL_ERR_CHK;
+      // Bind & draw the different block types
+      grassBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+      glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, grassBlock.count);
+      GL_ERR_CHK;
 
-    // Render the water blocks to a texture, using the depth values from the rendering
-    // of solid blocks to cull any obscured water surfaces.
-    glBindFramebuffer(GL_FRAMEBUFFER, WS.waterBlocksFB);
-    glClearColor(0,0,0,0);
-    glClear( GL_COLOR_BUFFER_BIT ); // Don't clear depth, so we can use it to cull!
+      sandBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+      glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, sandBlock.count);
+      GL_ERR_CHK;
 
-    waterBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, waterBlock.count);
-    GL_ERR_CHK;
+      stoneBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+      glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, stoneBlock.count);
+      GL_ERR_CHK;
 
-    // Render to the screen, binding the solid and water blocks to a shader, and blending
-    // them together before outputting to the screen.
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glClearColor(1, 0, 1, 1); // Magenta - useful error color
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+      // Render the water blocks to a texture, using the depth values from the rendering
+      // of solid blocks to cull any obscured water surfaces.
+      glBindFramebuffer(GL_FRAMEBUFFER, WS.waterBlocksFB);
+      glClearColor(0,0,0,0);
+      glClear( GL_COLOR_BUFFER_BIT ); // Don't clear depth, so we can use it to cull!
 
-    blendShader.activate();
-    // Bind the textures
-    glActiveTexture(GL_TEXTURE0 + 4);
-    glBindTexture(GL_TEXTURE_2D, WS.solidBlocksColorTex);
-    glUniform1i(solidTexLoc, 4);
-    glActiveTexture(GL_TEXTURE0 + 6);
-    glBindTexture(GL_TEXTURE_2D, WS.waterBlocksColorTex);
-    glUniform1i(waterTexLoc, 6);
+      waterBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+      glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, waterBlock.count);
+      GL_ERR_CHK;
 
-    // Draw the viewport
-    view.draw();
+      // Render to the screen, binding the solid and water blocks to a shader, and blending
+      // them together before outputting to the screen.
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      glClearColor(1, 0, 1, 1); // Magenta - useful error color
+      glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-    if (true) {
+      blendShader.activate();
+      // Bind the textures
+      glActiveTexture(GL_TEXTURE0 + 4);
+      glBindTexture(GL_TEXTURE_2D, WS.solidBlocksColorTex);
+      glUniform1i(solidTexLoc, 4);
+      glActiveTexture(GL_TEXTURE0 + 6);
+      glBindTexture(GL_TEXTURE_2D, WS.waterBlocksColorTex);
+      glUniform1i(waterTexLoc, 6);
+
+      // Draw the viewport
+      view.draw();
+    } else {
+      // Just clear the screen to the background sky color
+      glClearColor( 77.0/255, 219.0/255, 213.0/255, 1.0 );
+      glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    }
+
+    if (WS.displayWireframe) {
       wireShader.activate();
       // Send the data to the wireframe shader
       glUniform4fv(wire_eyeLoc, 1, glm::value_ptr(WS.eye)); GL_ERR_CHK;
@@ -517,7 +537,6 @@ int main(int argc, char **argv)
       GL_ERR_CHK;
     }
 
-    mainShader.activate();
 
     // Swap and poll events
     glfwSwapBuffers(window);

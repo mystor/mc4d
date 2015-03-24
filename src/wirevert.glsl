@@ -18,6 +18,8 @@ uniform mat4 projMat3D;
 // The srm
 uniform mat4 srm;
 
+out float depth;
+
 // This function accepts some pre-computed values which will help speed stuff up
 vec4 projectTo3D()
 {
@@ -31,6 +33,7 @@ vec4 projectTo3D()
 
   // Scale for perspective
   float scale = recipTanViewAngle / eyePos.w;
+  depth = eyePos.w;
   return vec4(scale * eyePos.xyz, 1);
 }
 
