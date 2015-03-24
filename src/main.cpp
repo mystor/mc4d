@@ -3,6 +3,7 @@
 #include "gpuProgram.h"
 #include "world.h"
 #include "project.h"
+#include "blocktype.h"
 
 #include "shaders.h"
 
@@ -22,6 +23,8 @@ static struct WorldState {
   glm::vec4 over;
   glm::vec4 eye;
   glm::vec4 forward;
+
+  bool autorotXY, autorotXZ, autorotXW, autorotYZ, autorotYW, autorotZW;
 } WS;
 
 // If GLFW reports an error, this will be called
@@ -50,6 +53,13 @@ static void keyCallback(GLFWwindow* window, int key,
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
       }
     } break;
+      // Enable automatic rotation
+    case GLFW_KEY_Z: WS.autorotXY = !WS.autorotXY; break;
+    case GLFW_KEY_X: WS.autorotXZ = !WS.autorotXZ; break;
+    case GLFW_KEY_C: WS.autorotXW = !WS.autorotXW; break;
+    case GLFW_KEY_V: WS.autorotYZ = !WS.autorotYZ; break;
+    case GLFW_KEY_B: WS.autorotYW = !WS.autorotYW; break;
+    case GLFW_KEY_N: WS.autorotZW = !WS.autorotZW; break;
     }
   } else if (action == GLFW_RELEASE) {
     switch (key) {
@@ -102,30 +112,15 @@ int main(int argc, char **argv)
 
   // The world is heap allocated because otherwise it will blow out the stack
   std::unique_ptr<World> world(new World());
-  std::cout << "Drawing " << world->hypercubeLocs.size() << " hypercubes." << std::endl;
 
-  // Check the maximum texture size on this computer
+  // Get the maximum texture size
   GLint maxTextureSize;
   glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTextureSize);
   std::cout << "Max texture size: " << maxTextureSize << std::endl;
-  // assert((uint32_t)maxTextureSize >= world->hypercubeLocs.size());
 
-  // Ensure that the memory block is large enough
-  size_t height = (world->hypercubeLocs.size() + maxTextureSize - 1) / maxTextureSize;
-  world->hypercubeLocs.reserve(height * maxTextureSize);
-
-
-  std::cout << "height = " << height << ", width = " << maxTextureSize << "\n";
-  // Create the texture!
-  GLuint hypercubeLocsTex;
-  glGenTextures(1, &hypercubeLocsTex);
-  glBindTexture(GL_TEXTURE_2D, hypercubeLocsTex);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-               maxTextureSize, height,
-               0, GL_RGBA, GL_FLOAT,
-               world->hypercubeLocs.data());
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  GL_ERR_CHK;
+  // Create the grass and stone blocks
+  BlockType grassBlock(&world->grassLocs, 1);
+  BlockType stoneBlock(&world->stoneLocs, 0);
 
   // Noise generation for surfaces. Done using random noise
   float faceTexPts[16*16];
@@ -196,22 +191,11 @@ int main(int argc, char **argv)
   GLuint eyeLoc = mainShader.uniformLocation("eye");
   GLuint forwardLoc = mainShader.uniformLocation("forward");
   GLuint hypercubeLoc = mainShader.uniformLocation("hypercube");
-  // GLuint hcCountLoc = mainShader.uniformLocation("hcCount");
-  GLuint hcWidthLoc = mainShader.uniformLocation("hcWidth");
-  GLuint hcHeightLoc = mainShader.uniformLocation("hcHeight");
+  GLuint hcCountLoc = mainShader.uniformLocation("hcCount");
+  GLuint hcIndicatorLoc = mainShader.uniformLocation("hcIndicator");
   GLuint faceTexLoc = mainShader.uniformLocation("faceTex");
 
   GLuint srmLoc = mainShader.uniformLocation("srm");
-
-  // Set the texture up
-  glUniform1i(hypercubeLoc, 0);
-  glActiveTexture(GL_TEXTURE0 + 0);
-  glBindTexture(GL_TEXTURE_2D, hypercubeLocsTex);
-
-  // Send the count up to the GPU
-  glUniform1i(hcWidthLoc, maxTextureSize);
-  glUniform1i(hcHeightLoc, height);
-  // glUniform1f(hcCountLoc, world->hypercubeLocs.size());
 
   // Set the texture up
   glUniform1i(faceTexLoc, 2);
@@ -250,11 +234,14 @@ int main(int argc, char **argv)
       // Get the component of forward perpendicular to up
       glm::vec4 perpForward = normalize(WS.forward - (glm::dot(WS.up, WS.forward) * WS.up));
 
-#define ADJUST(uk, dk, var) if (glfwGetKey(window, GLFW_KEY_##uk)) {\
+#define ADJUST(uk, dk, var) if (glfwGetKey(window, GLFW_KEY_##uk)) {  \
         var += SPEED * delta; \
       }\
       if (glfwGetKey(window, GLFW_KEY_##dk)) {\
         var -= SPEED * delta;\
+      }\
+      if (WS.auto##var) {\
+        var += SPEED * delta;\
       }
 
       ADJUST(Q, A, rotXY);
@@ -308,9 +295,15 @@ int main(int argc, char **argv)
     glUniformMatrix4fv(projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D)); GL_ERR_CHK;
     glUniformMatrix4fv(srmLoc, 1, GL_FALSE, glm::value_ptr(srm)); GL_ERR_CHK;
 
+
     // Draw the tesseracts!
+    grassBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
     glBindVertexArray(VAO);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, sizeof(verts)/sizeof(verts[0]), world->hypercubeLocs.size());
+    glDrawArraysInstanced(GL_TRIANGLES, 0, sizeof(verts)/sizeof(verts[0]), grassBlock.count);
+    GL_ERR_CHK;
+
+    stoneBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, sizeof(verts)/sizeof(verts[0]), stoneBlock.count);
     GL_ERR_CHK;
 
     // Swap and poll events

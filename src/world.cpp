@@ -25,7 +25,7 @@ World::World() {
   // Ensure that the perm matrix is initialized
   initPerm();
   // Loop over the possible things in the world
-  std::cout << "Starting world generation" << std::endl;;
+  std::cout << "Starting world generation" << std::endl;
   int32_t x, y, z, w;
   for (x=0; x<WORLD_DIM.x; x++) {
     for (y=0; y<WORLD_DIM.y; y++) {
@@ -43,7 +43,21 @@ World::World() {
     }
     std::cout << x << "/" << WORLD_DIM.x << "\n";
   }
-  std::cout << "Done world generation" << std::endl;;
+  std::cout << "Done world generation" << std::endl;
+
+  std::cout << "Growing grass" << std::endl;
+  for (x=0; x<WORLD_DIM.x; x++) {
+    for (y=0; y<WORLD_DIM.y; y++) {
+      for (z=0; z<WORLD_DIM.z; z++) {
+        for (w=0; w<WORLD_DIM.w; w++) {
+          if (worldSample(x, y+1, z, w) == HCT_AIR && hypercubes[x][y][z][w] == HCT_STONE) {
+            hypercubes[x][y][z][w] = HCT_GRASS;
+          }
+        }
+      }
+    }
+  }
+  std::cout << "Done growing grass" << std::endl;
 
   std::cout << "Starting mesh generation" << std::endl;
 
@@ -53,21 +67,26 @@ World::World() {
         for (w=0; w<WORLD_DIM.w; w++) {
           HyperCubeTypes hct = hypercubes[x][y][z][w];
 
+#define SURROUNDED (worldSample(x-1, y, z, w) != HCT_AIR && \
+                    worldSample(x+1, y, z, w) != HCT_AIR && \
+                    worldSample(x, y-1, z, w) != HCT_AIR && \
+                    worldSample(x, y+1, z, w) != HCT_AIR && \
+                    worldSample(x, y, z-1, w) != HCT_AIR && \
+                    worldSample(x, y, z+1, w) != HCT_AIR && \
+                    worldSample(x, y, z, w-1) != HCT_AIR && \
+                    worldSample(x, y, z, w+1) != HCT_AIR)
+
           switch (hct) {
           case HCT_AIR:
             break;
+          case HCT_GRASS:
+            if (!SURROUNDED) {
+              grassLocs.push_back(glm::vec4(x, y, z, w));
+            }
+            break;
           case HCT_STONE:
-            if (worldSample(x-1, y, z, w) != HCT_AIR &&
-                worldSample(x+1, y, z, w) != HCT_AIR &&
-                worldSample(x, y-1, z, w) != HCT_AIR &&
-                worldSample(x, y+1, z, w) != HCT_AIR &&
-                worldSample(x, y, z-1, w) != HCT_AIR &&
-                worldSample(x, y, z+1, w) != HCT_AIR &&
-                worldSample(x, y, z, w-1) != HCT_AIR &&
-                worldSample(x, y, z, w+1) != HCT_AIR) {
-              // All surrounding cubes are filled
-            } else {
-              hypercubeLocs.push_back(glm::vec4(x, y, z, w));
+            if (!SURROUNDED) {
+              stoneLocs.push_back(glm::vec4(x, y, z, w));
             }
             break;
           }

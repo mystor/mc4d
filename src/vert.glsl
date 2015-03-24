@@ -17,10 +17,8 @@ uniform float recipTanViewAngle;
 uniform mat4 projMat3D;
 
 // The points in space (and the # of them)
-uniform sampler2D hypercube;
-// uniform float hcCount;
-uniform int hcWidth;
-uniform int hcHeight;
+uniform sampler1D hypercube;
+uniform float hcCount;
 
 // The srm
 uniform mat4 srm;
@@ -31,11 +29,9 @@ out vec4 vcolor;
 // This function accepts some pre-computed values which will help speed stuff up
 vec4 projectTo3D()
 {
-  ivec2 pt = ivec2(gl_InstanceID % hcWidth, gl_InstanceID / hcWidth);
-  vec2 tPt = vec2(pt.x / float(hcWidth), pt.y / float(hcHeight));
   // Get the position of the hypercube based on a texture lookuo
   // TODO(michael): support more cells by using 2D textures instead of 1D ones
-  vec4 realPosition = position + texture(hypercube, tPt);
+  vec4 realPosition = position + texture(hypercube, gl_InstanceID / hcCount);
 
   // HACK(michael): Offset such that the world is centered at (0,0,0,0)
   realPosition -= vec4(8, 8, 8, 8);
