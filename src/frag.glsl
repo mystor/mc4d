@@ -23,9 +23,7 @@ void main()
     fragColour.g += clamp(color.b - 0.5, 0, 1);
   } else if (hcIndicator == 2) { // Water
     fragColour.b += 0.5;
-    fragColour.a = 0.5;
+  } else if (hcIndicator == 3) { // Sand
+    fragColour += 0.5 * vec4(237 / 255.0, 201 / 255.0, 175 / 255.0, 0);
   }
-
-  // Store the depth in the alpha channel
-  // fragColour.a = gl_FragCoord.z;
 }

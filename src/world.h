@@ -24,7 +24,8 @@ enum HyperCubeTypes {
   HCT_SOLID_START,
 
   HCT_STONE,
-  HCT_GRASS
+  HCT_GRASS,
+  HCT_SAND
 } __attribute__((packed));
 
 static_assert(sizeof(HyperCubeTypes) == sizeof(uint8_t),
@@ -47,6 +48,7 @@ class World {
 public:
   std::vector<glm::vec4> stoneLocs;
   std::vector<glm::vec4> grassLocs;
+  std::vector<glm::vec4> sandLocs;
   std::vector<glm::vec4> waterLocs;
 
   World();

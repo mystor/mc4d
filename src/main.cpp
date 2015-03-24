@@ -199,6 +199,7 @@ int main(int argc, char **argv)
 
   // Create the grass and stone blocks
   BlockType grassBlock(&world->grassLocs, 1);
+  BlockType sandBlock(&world->sandLocs, 3);
   BlockType stoneBlock(&world->stoneLocs, 0);
   BlockType waterBlock(&world->waterLocs, 2);
 
@@ -483,6 +484,10 @@ int main(int argc, char **argv)
     // Bind & draw the different block types
     grassBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
     glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, grassBlock.count);
+    GL_ERR_CHK;
+
+    sandBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, sandBlock.count);
     GL_ERR_CHK;
 
     stoneBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);

@@ -51,7 +51,11 @@ World::World() {
       for (z=0; z<WORLD_DIM.z; z++) {
         for (w=0; w<WORLD_DIM.w; w++) {
           if (worldSample(x, y+1, z, w) == HCT_AIR && hypercubes[x][y][z][w] == HCT_STONE) {
-            hypercubes[x][y][z][w] = HCT_GRASS;
+            if (y >= WORLD_DIM.y / 2) {
+              hypercubes[x][y][z][w] = HCT_GRASS;
+            } else {
+              hypercubes[x][y][z][w] = HCT_SAND;
+            }
           }
         }
       }
@@ -98,6 +102,11 @@ World::World() {
           case HCT_GRASS:
             if (!SURROUNDED) {
               grassLocs.push_back(glm::vec4(x, y, z, w));
+            }
+            break;
+          case HCT_SAND:
+            if (!SURROUNDED) {
+              sandLocs.push_back(glm::vec4(x, y, z, w));
             }
             break;
           case HCT_STONE:
