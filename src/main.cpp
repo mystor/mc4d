@@ -106,7 +106,7 @@ static void resizeCallback(GLFWwindow *, int width, int height)
 
 static void generateFrameBuffer(GLuint &color_tex, GLuint &depth_tex, GLuint &fb, int width, int height, bool genDepth)
 {
-  //RGBA8 2D texture, 24 bit depth texture, 256x256
+  // Create the color texture
   glGenTextures(1, &color_tex);
   glBindTexture(GL_TEXTURE_2D, color_tex);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -114,9 +114,12 @@ static void generateFrameBuffer(GLuint &color_tex, GLuint &depth_tex, GLuint &fb
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   GL_ERR_CHK;
-  //NULL means reserve texture memory, but texels are undefined
+
+  // Give it width x height memory
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+
   if (genDepth) {
+    // Create the depth texture
     glGenTextures(1, &depth_tex);
     glBindTexture(GL_TEXTURE_2D, depth_tex);
     GL_ERR_CHK;
@@ -124,22 +127,24 @@ static void generateFrameBuffer(GLuint &color_tex, GLuint &depth_tex, GLuint &fb
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); GL_ERR_CHK;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); GL_ERR_CHK;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); GL_ERR_CHK;
-    // glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY); GL_ERR_CHK;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE); GL_ERR_CHK;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL); GL_ERR_CHK;
-    //NULL means reserve texture memory, but texels are undefined
+
+    // Give it width x height memory
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
   }
-  //-------------------------
+
+  // Create the framebuffer
   glGenFramebuffersEXT(1, &fb);
   glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb);
-  //Attach 2D texture to this FBO
+
+  // Attach the color texture to the framebuffer
   glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, color_tex, 0/*mipmap level*/);
-  //-------------------------
-  //Attach depth texture to FBO
+
+  // Attach the depth texture to the framebuffer
   glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, GL_TEXTURE_2D, depth_tex, 0/*mipmap level*/);
-  //-------------------------
-  //Does the GPU support current FBO configuration?
+
+  // Make sure that there isn't a problem with the framebuffer status
   GLenum status;
   status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
   switch(status)
@@ -147,7 +152,6 @@ static void generateFrameBuffer(GLuint &color_tex, GLuint &depth_tex, GLuint &fb
   case GL_FRAMEBUFFER_COMPLETE_EXT:
     return;
   default:
-    std::cerr << "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT = " << GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT << "\n";
     std::cerr << "Status " << status << " when checking Framebuffer Status\n";
   }
   GL_ERR_CHK;
@@ -287,7 +291,6 @@ int main(int argc, char **argv)
   mainShader.createShader(GL_FRAGMENT_SHADER, fragGlsl);
   mainShader.createShader(GL_GEOMETRY_SHADER, geomGlsl);
   mainShader.link();
-  mainShader.activate();
   GL_ERR_CHK;
 
   ShaderProgram blendShader;
