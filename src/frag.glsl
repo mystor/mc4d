@@ -23,6 +23,7 @@ void main()
     fragColour.g += clamp(color.b - 0.5, 0, 1);
   } else if (hcIndicator == 2) { // Water
     fragColour.b += 0.5;
+    fragColour.a = 0.4; // Blending factor
   } else if (hcIndicator == 3) { // Sand
     fragColour += 0.5 * vec4(237 / 255.0, 201 / 255.0, 175 / 255.0, 0);
   }

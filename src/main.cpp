@@ -51,6 +51,7 @@ static void keyCallback(GLFWwindow* window, int key,
     case GLFW_KEY_ESCAPE: {
       glfwSetWindowShouldClose(window, GL_TRUE);
     } break;
+#if 0 // The wireframe projection doesn't work like this anymore due to multipass rendering
     case GLFW_KEY_M: {
       static bool lines = false;
       if (lines) {
@@ -61,6 +62,7 @@ static void keyCallback(GLFWwindow* window, int key,
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
       }
     } break;
+#endif
       // Enable automatic rotation
     case GLFW_KEY_Z: WS.autorotXY = !WS.autorotXY; break;
     case GLFW_KEY_X: WS.autorotXZ = !WS.autorotXZ; break;
@@ -69,7 +71,9 @@ static void keyCallback(GLFWwindow* window, int key,
     case GLFW_KEY_B: WS.autorotYW = !WS.autorotYW; break;
     case GLFW_KEY_N: WS.autorotZW = !WS.autorotZW; break;
 
+#if 0 // The orthoprojection looks really janky - disable it
     case GLFW_KEY_O: WS.orthoProj = !WS.orthoProj; break;
+#endif
     }
   } else if (action == GLFW_RELEASE) {
     switch (key) {
@@ -91,7 +95,7 @@ static void resizeCallback(GLFWwindow *, int width, int height)
   GL_ERR_CHK;
 }
 
-static void generateFrameBufferThingy(GLuint &color_tex, GLuint &depth_tex, GLuint &fb, int width, int height, bool genDepth)
+static void generateFrameBuffer(GLuint &color_tex, GLuint &depth_tex, GLuint &fb, int width, int height, bool genDepth)
 {
   //RGBA8 2D texture, 24 bit depth texture, 256x256
   glGenTextures(1, &color_tex);
@@ -178,10 +182,6 @@ int main(int argc, char **argv)
   glErrChk("GLEW_ERROR (OK)");
 
   glEnable(GL_DEPTH_TEST);
-#if 0
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-#endif
 
   // Before we can create the world, we need to initialize the tesseract
   Tesseract::gen();
@@ -290,78 +290,18 @@ int main(int argc, char **argv)
   GL_ERR_CHK;
   blendShader.activate();
   {
-#if 1
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
 
-    generateFrameBufferThingy(WS.solidBlocksColorTex, WS.solidBlocksDepthTex, WS.solidBlocksFB,
-                              width, height, true);
-    generateFrameBufferThingy(WS.waterBlocksColorTex, WS.solidBlocksDepthTex, WS.waterBlocksFB,
-                              width, height, false);
+    generateFrameBuffer(WS.solidBlocksColorTex, WS.solidBlocksDepthTex, WS.solidBlocksFB,
+                        width, height, true);
+    generateFrameBuffer(WS.waterBlocksColorTex, WS.solidBlocksDepthTex, WS.waterBlocksFB,
+                        width, height, false);
 
     glfwSetFramebufferSizeCallback(window, resizeCallback);
-#else
-
-
-
-    /***** Frame Buffer Setup *****/
-    // Create & set up the textures for double-rendering
-    glGenFramebuffers(1, &WS.solidBlocksFB);
-    glGenFramebuffers(1, &WS.waterBlocksFB);
-    glGenTextures(1, &WS.solidBlocksTex);
-    glGenTextures(1, &WS.waterBlocksTex);
-
-    // Create the textures
-    // SOLID
-    glUniform1i(solidTexLoc, 4);
-    GL_ERR_CHK;
-    glActiveTexture(GL_TEXTURE0 + 4);
-    glBindFramebuffer(GL_FRAMEBUFFER, WS.solidBlocksFB);
-    glBindTexture(GL_TEXTURE_2D, WS.solidBlocksTex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    GL_ERR_CHK;
-
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, WS.solidBlocksFB, 0);
-
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-      std::cerr << "There was a problem setting up the framebuffer!\n";
-      exit(-1);
-    }
-
-
-    // WATER
-    glUniform1i(waterTexLoc, 4);
-    GL_ERR_CHK;
-    glActiveTexture(GL_TEXTURE0 + 6);
-    glBindFramebuffer(GL_FRAMEBUFFER, WS.waterBlocksFB);
-    glBindTexture(GL_TEXTURE_2D, WS.waterBlocksTex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    GL_ERR_CHK;
-
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, WS.waterBlocksFB, 0);
-
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-      std::cerr << "There was a problem setting up the framebuffer!\n";
-      exit(-1);
-    }
-
-    GL_ERR_CHK;
-
-    // Fire a resize event to get the texture memory set up correctly
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-    resizeCallback(window, width, height);
-    glfwSetFramebufferSizeCallback(window, resizeCallback);
-
-    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-      std::cerr << "There was a problem setting up the framebuffer!\n";
-      exit(-1);
-    }
-#endif
   }
   GL_ERR_CHK;
+
   mainShader.activate();
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -391,10 +331,6 @@ int main(int argc, char **argv)
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
     ratio = width / (float) height;
-
-    // Clear the color for the background
-    glClearColor( 77.0/255, 219.0/255, 213.0/255, 1.0 );
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
     // World state updating */
     {
@@ -476,8 +412,10 @@ int main(int argc, char **argv)
     const size_t vaoSize = sizeof(verts)/sizeof(verts[0]);
     glBindVertexArray(VAO);
 
+    // Render the solid geometry to a texture, storing the depth values in the depth texture
+    // which is shared between the solid block frame buffer and the water frame buffer.
     mainShader.activate();
-    // Render to the screen
+    glClearColor( 77.0/255, 219.0/255, 213.0/255, 1.0 );
     glBindFramebuffer(GL_FRAMEBUFFER, WS.solidBlocksFB);
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
@@ -494,16 +432,24 @@ int main(int argc, char **argv)
     glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, stoneBlock.count);
     GL_ERR_CHK;
 
+    // Render the water blocks to a texture, using the depth values from the rendering
+    // of solid blocks to cull any obscured water surfaces.
     glBindFramebuffer(GL_FRAMEBUFFER, WS.waterBlocksFB);
+    glClearColor(0,0,0,0);
     glClear( GL_COLOR_BUFFER_BIT ); // Don't clear depth, so we can use it to cull!
 
     waterBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
     glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, waterBlock.count);
     GL_ERR_CHK;
 
+    // Render to the screen, binding the solid and water blocks to a shader, and blending
+    // them together before outputting to the screen.
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClearColor(1, 0, 1, 1); // Magenta - useful error color
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
     blendShader.activate();
+    // Bind the textures
     glActiveTexture(GL_TEXTURE0 + 4);
     glBindTexture(GL_TEXTURE_2D, WS.solidBlocksColorTex);
     glUniform1i(solidTexLoc, 4);
@@ -511,6 +457,7 @@ int main(int argc, char **argv)
     glBindTexture(GL_TEXTURE_2D, WS.waterBlocksColorTex);
     glUniform1i(waterTexLoc, 6);
 
+    // Draw the viewport
     view.draw();
     mainShader.activate();
 
