@@ -3,10 +3,21 @@
 
 #define DUMP(a) std::cout << #a << " = " << a.x << ",\t" << a.y << ",\t" << a.z << ",\t" << a.w << "\n"
 
-static inline double noiseSample(glm::dvec4 loc) {
+static inline double baseNoiseSample(glm::dvec4 loc) {
   double rawSimplex = simplexNoise4D(glm::dvec4(1, 1, 1, 1) + // This is kinda like a seed?
                                      5.0 * (loc / glm::dvec4(ROUNDWORLD_DIM)));
 
+  return rawSimplex;
+}
+
+static inline double cloudNoiseSample(glm::dvec4 loc) {
+  double rawSimplex = simplexNoise4D(glm::dvec4(1, 1, 1, 1) + // This is kinda like a seed?
+                                     3.0 * (loc / glm::dvec4(ROUNDWORLD_DIM)));
+
+  return rawSimplex;
+}
+
+static inline double noiseSample(glm::dvec4 loc, double rawSimplex) {
   glm::dvec4 fromCenter = loc - (glm::dvec4(ROUNDWORLD_DIM) / 2.0);
 
   return (0.20 * rawSimplex) + (length(fromCenter) / 12);
@@ -23,7 +34,7 @@ HyperCubeTypes RoundWorld::worldSample(int32_t x, int32_t y, int32_t z, int32_t 
 }
 
 RoundWorld::RoundWorld() {
-  std::cout << noiseSample(glm::ivec4(0, 0, 0, 0)) << "\n";
+  // std::cout << noiseSample(glm::ivec4(0, 0, 0, 0)) << "\n";
 
   // Ensure that the perm matrix is initialized
   initPerm();
@@ -34,12 +45,19 @@ RoundWorld::RoundWorld() {
     for (y=0; y<ROUNDWORLD_DIM.y; y++) {
       for (z=0; z<ROUNDWORLD_DIM.z; z++) {
         for (w=0; w<ROUNDWORLD_DIM.w; w++) {
-          double sample = noiseSample(glm::dvec4(x, y, z, w));
+          glm::dvec4 loc(x, y, z, w);
+          double baseSample = baseNoiseSample(loc);
+          double cloudSample = cloudNoiseSample(loc);
+          double sample = noiseSample(loc, baseSample);
+          glm::dvec4 fromCenter = loc - (glm::dvec4(ROUNDWORLD_DIM) / 2.0);
+          double rad = length(fromCenter);
 
           if (sample < 0.6) {
             hypercubes[x][y][z][w] = HCT_STONE;
           } else if (sample < 0.7) {
             hypercubes[x][y][z][w] = HCT_GRASS;
+          } else if (rad > 13 && rad < 15 && cloudSample > 0.8) {
+            hypercubes[x][y][z][w] = HCT_CLOUD;
           } else {
             hypercubes[x][y][z][w] = HCT_AIR;
           }
@@ -144,6 +162,11 @@ RoundWorld::RoundWorld() {
           case HCT_WATER:
             if (!SURROUNDED) {
               waterLocs.push_back(glm::vec4(x, y, z, w));
+            }
+            break;
+          case HCT_CLOUD:
+            if (!SURROUNDED) {
+              cloudLocs.push_back(glm::vec4(x, y, z, w));
             }
             break;
           default:

@@ -65,6 +65,7 @@ struct Tesseract {
 enum HyperCubeTypes {
   HCT_AIR,
   HCT_WATER,
+  HCT_CLOUD,
 
   HCT_SOLID_START,
 

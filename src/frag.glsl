@@ -28,5 +28,8 @@ void main()
     fragColour += 0.5 * vec4(237 / 255.0, 201 / 255.0, 175 / 255.0, 0);
   } else if (hcIndicator == 4) { // Solid grass
     fragColour.g += 0.5;
+  } else if (hcIndicator == 5) { // Cloud
+    fragColour.rgb += 0.3;
+    fragColour.a = 0.4; // Blending factor
   }
 }

@@ -207,6 +207,7 @@ int main(int argc, char **argv)
   BlockType roundSandBlock(&roundworld->sandLocs, 3);
   BlockType roundStoneBlock(&roundworld->stoneLocs, 0);
   BlockType roundWaterBlock(&roundworld->waterLocs, 2);
+  BlockType roundCloudBlock(&roundworld->cloudLocs, 5);
 
   // Noise generation for surfaces. Done using random noise
   float faceTexPts[16*16];
@@ -452,6 +453,7 @@ int main(int argc, char **argv)
       BlockType &sandBlock =  roundSandBlock;
       BlockType &stoneBlock = roundStoneBlock;
       BlockType &waterBlock = roundWaterBlock;
+      BlockType &cloudBlock = roundCloudBlock;
 #else
       BlockType &grassBlock = squareGrassBlock;
       BlockType &sandBlock = squareSandBlock;
@@ -500,6 +502,11 @@ int main(int argc, char **argv)
       waterBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
       glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, waterBlock.count);
       GL_ERR_CHK;
+
+      // This is commented out because the clouds look kinda bad
+      // cloudBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+      // glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, cloudBlock.count);
+      // GL_ERR_CHK;
 
       // Render to the screen, binding the solid and water blocks to a shader, and blending
       // them together before outputting to the screen.

@@ -35,6 +35,7 @@ public:
   std::vector<glm::vec4> grassLocs;
   std::vector<glm::vec4> sandLocs;
   std::vector<glm::vec4> waterLocs;
+  std::vector<glm::vec4> cloudLocs;
 
   RoundWorld();
 
