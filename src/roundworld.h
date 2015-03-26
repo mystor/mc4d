@@ -1,4 +1,4 @@
-//===--- world.h - The Game World -------------------------------*- C++ -*-===//
+//===--- roundworld.h - A round world ---------------------------*- C++ -*-===//
 //
 //                              MC 4D Renderer
 //                        Michael Layzell - CISC 454
@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef __world_h
-#define __world_h
+#ifndef __roundworld_h
+#define __roundworld_h
 
 #include "tesseract.h"
 
@@ -16,18 +16,18 @@
 #include <vector>
 #include <glm/glm.hpp>
 
-static const int32_t DIM = 16;
-static const int32_t WD_X = DIM;
-static const int32_t WD_Y = DIM;
-static const int32_t WD_Z = DIM;
-static const int32_t WD_W = DIM;
-static const glm::ivec4 WORLD_DIM(WD_X, WD_Y, WD_Z, WD_W);
+static const int32_t RDIM = 32;
+static const int32_t RWD_X = RDIM;
+static const int32_t RWD_Y = RDIM;
+static const int32_t RWD_Z = RDIM;
+static const int32_t RWD_W = RDIM;
+static const glm::ivec4 ROUNDWORLD_DIM(RWD_X, RWD_Y, RWD_Z, RWD_W);
 
-class World {
+class RoundWorld {
   GLuint VAO;
   GLuint VBO;
 
-  HyperCubeTypes hypercubes[WD_X][WD_Y][WD_Z][WD_W];
+  HyperCubeTypes hypercubes[RWD_X][RWD_Y][RWD_Z][RWD_W];
 
   HyperCubeTypes worldSample(int32_t x, int32_t y, int32_t z, int32_t w);
 public:
@@ -36,9 +36,9 @@ public:
   std::vector<glm::vec4> sandLocs;
   std::vector<glm::vec4> waterLocs;
 
-  World();
+  RoundWorld();
 
   void draw();
 };
 
-#endif // defined(__world_h)
+#endif // defined(__roundworld_h)

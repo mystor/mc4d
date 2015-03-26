@@ -1,24 +1,28 @@
-#include "world.h"
+#include "roundworld.h"
 #include "noise.h"
+
+#define DUMP(a) std::cout << #a << " = " << a.x << ",\t" << a.y << ",\t" << a.z << ",\t" << a.w << "\n"
 
 static inline double noiseSample(glm::dvec4 loc) {
   double rawSimplex = simplexNoise4D(glm::dvec4(1, 1, 1, 1) + // This is kinda like a seed?
-                                     (loc / glm::dvec4(WORLD_DIM)));
+                                     5.0 * (loc / glm::dvec4(ROUNDWORLD_DIM)));
 
-  return rawSimplex + loc.y/WORLD_DIM.y;
+  glm::dvec4 fromCenter = loc - (glm::dvec4(ROUNDWORLD_DIM) / 2.0);
+
+  return (0.20 * rawSimplex) + (length(fromCenter) / 12);
 }
 
-HyperCubeTypes World::worldSample(int32_t x, int32_t y, int32_t z, int32_t w) {
+HyperCubeTypes RoundWorld::worldSample(int32_t x, int32_t y, int32_t z, int32_t w) {
   if (x < 0 || y < 0 || z < 0 || w < 0) {
     return HCT_AIR;// TONE;
-  } else if (x >= WD_X || y >= WD_Y || z >= WD_Z || w >= WD_W) {
+  } else if (x >= RWD_X || y >= RWD_Y || z >= RWD_Z || w >= RWD_W) {
     return HCT_AIR;
   } else {
     return hypercubes[x][y][z][w];
   }
 }
 
-World::World() {
+RoundWorld::RoundWorld() {
   std::cout << noiseSample(glm::ivec4(0, 0, 0, 0)) << "\n";
 
   // Ensure that the perm matrix is initialized
@@ -26,64 +30,88 @@ World::World() {
   // Loop over the possible things in the world
   std::cout << "Starting world generation" << std::endl;
   int32_t x, y, z, w;
-  for (x=0; x<WORLD_DIM.x; x++) {
-    for (y=0; y<WORLD_DIM.y; y++) {
-      for (z=0; z<WORLD_DIM.z; z++) {
-        for (w=0; w<WORLD_DIM.w; w++) {
+  for (x=0; x<ROUNDWORLD_DIM.x; x++) {
+    for (y=0; y<ROUNDWORLD_DIM.y; y++) {
+      for (z=0; z<ROUNDWORLD_DIM.z; z++) {
+        for (w=0; w<ROUNDWORLD_DIM.w; w++) {
           double sample = noiseSample(glm::dvec4(x, y, z, w));
 
-          if (sample < 0.5) {
+          if (sample < 0.6) {
             hypercubes[x][y][z][w] = HCT_STONE;
+          } else if (sample < 0.7) {
+            hypercubes[x][y][z][w] = HCT_GRASS;
           } else {
             hypercubes[x][y][z][w] = HCT_AIR;
           }
         }
       }
     }
-    std::cout << x << "/" << WORLD_DIM.x << "\n";
+    std::cout << x << "/" << ROUNDWORLD_DIM.x << "\n";
   }
   std::cout << "Done world generation" << std::endl;
 
   std::cout << "Growing grass" << std::endl;
-  for (x=0; x<WORLD_DIM.x; x++) {
-    for (y=0; y<WORLD_DIM.y; y++) {
-      for (z=0; z<WORLD_DIM.z; z++) {
-        for (w=0; w<WORLD_DIM.w; w++) {
+  for (x=0; x<ROUNDWORLD_DIM.x; x++) {
+    for (y=0; y<ROUNDWORLD_DIM.y; y++) {
+      for (z=0; z<ROUNDWORLD_DIM.z; z++) {
+        for (w=0; w<ROUNDWORLD_DIM.w; w++) {
           if (worldSample(x, y+1, z, w) == HCT_AIR && hypercubes[x][y][z][w] == HCT_STONE) {
-            if (y >= WORLD_DIM.y / 2) {
+            /* if (y >= ROUNDWORLD_DIM.y / 2) {
               hypercubes[x][y][z][w] = HCT_GRASS;
             } else {
               hypercubes[x][y][z][w] = HCT_SAND;
+              } */
+          }
+        }
+      }
+    }
+    std::cout << x << "/" << ROUNDWORLD_DIM.x << "\n";
+  }
+  std::cout << "Done growing grass" << std::endl;
+
+  std::cout << "Filling ponds" << std::endl;
+  srand(124);
+  for (x=0; x<ROUNDWORLD_DIM.x; x++) {
+    for (y=0; y<ROUNDWORLD_DIM.y; y++) { // Only half filled with water
+      for (z=0; z<ROUNDWORLD_DIM.z; z++) {
+        for (w=0; w<ROUNDWORLD_DIM.w; w++) {
+          glm::dvec4 fromCenter = glm::dvec4(x, y, z, w) - (glm::dvec4(ROUNDWORLD_DIM) / 2.0);
+          double rad = length(fromCenter);
+          HyperCubeTypes h = hypercubes[x][y][z][w];
+          if (rad < 9 && h == HCT_AIR) {
+            hypercubes[x][y][z][w] = HCT_WATER;
+          } else if (rad < 8 && (h == HCT_STONE || h == HCT_GRASS)) {
+            if (rand() < RAND_MAX / 2) {
+              hypercubes[x][y][z][w] = HCT_SAND;
+            } else {
+              hypercubes[x][y][z][w] = HCT_STONE;
             }
           }
         }
       }
     }
-    std::cout << x << "/" << WORLD_DIM.x << "\n";
+    std::cout << x << "/" << ROUNDWORLD_DIM.x << "\n";
   }
-  std::cout << "Done growing grass" << std::endl;
-
-  std::cout << "Filling ponds" << std::endl;
-  for (x=0; x<WORLD_DIM.x; x++) {
-    for (y=0; y<WORLD_DIM.y / 2; y++) { // Only half filled with water
-      for (z=0; z<WORLD_DIM.z; z++) {
-        for (w=0; w<WORLD_DIM.w; w++) {
+  /* for (x=0; x<ROUNDWORLD_DIM.x; x++) {
+    for (y=0; y<ROUNDWORLD_DIM.y / 2; y++) { // Only half filled with water
+      for (z=0; z<ROUNDWORLD_DIM.z; z++) {
+        for (w=0; w<ROUNDWORLD_DIM.w; w++) {
           if (hypercubes[x][y][z][w] == HCT_AIR) {
             hypercubes[x][y][z][w] = HCT_WATER;
           }
         }
       }
     }
-    std::cout << x << "/" << WORLD_DIM.x << "\n";
-  }
+    std::cout << x << "/" << ROUNDWORLD_DIM.x << "\n";
+    } */
   std::cout << "Done filling ponds" << std::endl;
 
   std::cout << "Starting mesh generation" << std::endl;
 
-  for (x=0; x<WORLD_DIM.x; x++) {
-    for (y=0; y<WORLD_DIM.y; y++) {
-      for (z=0; z<WORLD_DIM.z; z++) {
-        for (w=0; w<WORLD_DIM.w; w++) {
+  for (x=0; x<ROUNDWORLD_DIM.x; x++) {
+    for (y=0; y<ROUNDWORLD_DIM.y; y++) {
+      for (z=0; z<ROUNDWORLD_DIM.z; z++) {
+        for (w=0; w<ROUNDWORLD_DIM.w; w++) {
           HyperCubeTypes hct = hypercubes[x][y][z][w];
 
 #define SURROUNDED (worldSample(x-1, y, z, w) >= HCT_SOLID_START && \
@@ -125,13 +153,13 @@ World::World() {
         }
       }
     }
-    std::cout << x << "/" << WORLD_DIM.x << "\n";
+    std::cout << x << "/" << ROUNDWORLD_DIM.x << "\n";
   }
   std::cout << "Done mesh generation" << std::endl;
 
 }
 
-void World::draw() {
+void RoundWorld::draw() {
   std::cerr << "UNIMPLEMENTED\n";
   exit(-1);
 }

@@ -3,6 +3,7 @@
 #include "config.h"
 #include "gpuProgram.h"
 #include "world.h"
+#include "roundworld.h"
 #include "project.h"
 #include "blocktype.h"
 
@@ -186,7 +187,8 @@ int main(int argc, char **argv)
   GL_ERR_CHK;
 
   // The world is heap allocated because otherwise it will blow out the stack
-  std::unique_ptr<World> world(new World());
+  std::unique_ptr<World> squareworld(new World());
+  std::unique_ptr<RoundWorld> roundworld(new RoundWorld());
 
   View view;
 
@@ -196,10 +198,15 @@ int main(int argc, char **argv)
   std::cout << "Max texture size: " << maxTextureSize << std::endl;
 
   // Create the grass and stone blocks
-  BlockType grassBlock(&world->grassLocs, 1);
-  BlockType sandBlock(&world->sandLocs, 3);
-  BlockType stoneBlock(&world->stoneLocs, 0);
-  BlockType waterBlock(&world->waterLocs, 2);
+  BlockType squareGrassBlock(&squareworld->grassLocs, 1);
+  BlockType squareSandBlock(&squareworld->sandLocs, 3);
+  BlockType squareStoneBlock(&squareworld->stoneLocs, 0);
+  BlockType squareWaterBlock(&squareworld->waterLocs, 2);
+
+  BlockType roundGrassBlock(&roundworld->grassLocs, 4);
+  BlockType roundSandBlock(&roundworld->sandLocs, 3);
+  BlockType roundStoneBlock(&roundworld->stoneLocs, 0);
+  BlockType roundWaterBlock(&roundworld->waterLocs, 2);
 
   // Noise generation for surfaces. Done using random noise
   float faceTexPts[16*16];
@@ -440,6 +447,18 @@ int main(int argc, char **argv)
     const size_t linesVaoSize = sizeof(linesVerts)/sizeof(linesVerts[0]);
 
     if (WS.displayBlocks) {
+#if 1
+      BlockType &grassBlock = roundGrassBlock;
+      BlockType &sandBlock =  roundSandBlock;
+      BlockType &stoneBlock = roundStoneBlock;
+      BlockType &waterBlock = roundWaterBlock;
+#else
+      BlockType &grassBlock = squareGrassBlock;
+      BlockType &sandBlock = squareSandBlock;
+      BlockType &stoneBlock = squareStoneBlock;
+      BlockType &waterBlock = squareWaterBlock;
+#endif
+
       mainShader.activate();
       // Sending data to the GPU
       glUniform4fv(eyeLoc, 1, glm::value_ptr(WS.eye)); GL_ERR_CHK;

@@ -61,5 +61,20 @@ struct Tesseract {
   static void linesWithOffset(glm::vec4 offset, glm::vec4 *out);
 };
 
+// For rendering purposes
+enum HyperCubeTypes {
+  HCT_AIR,
+  HCT_WATER,
+
+  HCT_SOLID_START,
+
+  HCT_STONE,
+  HCT_GRASS,
+  HCT_SAND
+} __attribute__((packed));
+
+static_assert(sizeof(HyperCubeTypes) == sizeof(uint8_t),
+              "The HyperCubeTypes enum should only be 8 bits wide");
+
 
 #endif // defined(__tesseract_h)
