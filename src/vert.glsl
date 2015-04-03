@@ -20,6 +20,8 @@ uniform mat4 projMat3D;
 uniform sampler1D hypercube;
 uniform float hcCount;
 
+uniform float offset;
+
 // The srm
 uniform mat4 srm;
 
@@ -35,7 +37,7 @@ vec4 projectTo3D()
 
   // HACK(michael): Offset such that the world is centered at (0,0,0,0)
   // realPosition -= vec4(7.5, 7.5, 7.5, 7.5);
-  realPosition -= vec4(15.5, 15.5, 15.5, 15.5);
+  realPosition -= vec4(offset, offset, offset, offset);// vec4(15.5, 15.5, 15.5, 15.5);
   realPosition *= srm;
 
   // Get the position in eye-space

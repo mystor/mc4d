@@ -26,6 +26,10 @@ static struct WorldState {
   glm::vec4 eye;
   glm::vec4 forward;
 
+  // Rotation
+  double rotXY, rotXZ, rotXW;
+  double rotYZ, rotYW, rotZW;
+
   // Rotate automatically
   bool autorotXY, autorotXZ, autorotXW, autorotYZ, autorotYW, autorotZW;
 
@@ -34,7 +38,9 @@ static struct WorldState {
   bool orthoProj;
 
   // Display the scene
-  bool displayBlocks, displayWireframe;
+  bool displayBlocks, displayWireframe, hideWater;
+
+  bool squareWorld;
 
 
   GLuint solidBlocksFB, waterBlocksFB;
@@ -68,6 +74,24 @@ static void keyCallback(GLFWwindow* window, int key,
 
     case GLFW_KEY_COMMA: WS.displayWireframe = !WS.displayWireframe; break;
     case GLFW_KEY_PERIOD: WS.displayBlocks = !WS.displayBlocks; break;
+    case GLFW_KEY_SEMICOLON: WS.squareWorld = !WS.squareWorld; break;
+    case GLFW_KEY_APOSTROPHE: WS.hideWater = !WS.hideWater; break;
+
+    case GLFW_KEY_0:
+      WS.rotXY = 0;
+      WS.rotXZ = 0;
+      WS.rotXW = 0;
+      WS.rotYZ = 0;
+      WS.rotYW = 0;
+      WS.rotZW = 0;
+
+      WS.autorotXY = false;
+      WS.autorotXZ = false;
+      WS.autorotXW = false;
+      WS.autorotYZ = false;
+      WS.autorotYW = false;
+      WS.autorotZW = false;
+      break;
     }
   } else if (action == GLFW_RELEASE) {
     switch (key) {
@@ -318,6 +342,7 @@ int main(int argc, char **argv)
   GLuint hcIndicatorLoc = mainShader.uniformLocation("hcIndicator");
   GLuint faceTexLoc = mainShader.uniformLocation("faceTex");
   GLuint srmLoc = mainShader.uniformLocation("srm");
+  GLuint offsetLoc = mainShader.uniformLocation("offset");
 
   // Wireframe Shader locations
   GLuint wire_worldToEyeMat4DLoc = wireShader.uniformLocation("worldToEyeMat4D");
@@ -360,8 +385,8 @@ int main(int argc, char **argv)
   double lastTime, thisTime, delta;
 
   // Rotation
-  double rotXY = 0, rotXZ = 0, rotXW = 0;
-  double rotYZ = 0, rotYW = 0, rotZW = 0;
+  // double rotXY = 0, rotXZ = 0, rotXW = 0;
+  // double rotYZ = 0, rotYW = 0, rotZW = 0;
 
   lastTime = glfwGetTime();
   while (!glfwWindowShouldClose(window)) {
@@ -383,13 +408,13 @@ int main(int argc, char **argv)
       glm::vec4 perpForward = normalize(WS.forward - (glm::dot(WS.up, WS.forward) * WS.up));
 
 #define ADJUST(uk, dk, var) if (glfwGetKey(window, GLFW_KEY_##uk)) {  \
-        var += SPEED * delta; \
+        WS.var += SPEED * delta; \
       }\
       if (glfwGetKey(window, GLFW_KEY_##dk)) {\
-        var -= SPEED * delta;\
+        WS.var -= SPEED * delta;\
       }\
       if (WS.auto##var) {\
-        var += SPEED * delta;\
+        WS.var += SPEED * delta;\
       }
 
       ADJUST(Q, A, rotXY);
@@ -419,53 +444,61 @@ int main(int argc, char **argv)
 
     // Create the scene rotation matrix
     glm::mat4 srm =
-      glm::mat4(cosf(rotXY), sinf(rotXY), 0, 0,
-                -sinf(rotXY), cosf(rotXY), 0, 0,
+      glm::mat4(cosf(WS.rotXY), sinf(WS.rotXY), 0, 0,
+                -sinf(WS.rotXY), cosf(WS.rotXY), 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1) *
-      glm::mat4(cosf(rotXZ), 0, sinf(rotXZ), 0,
+      glm::mat4(cosf(WS.rotXZ), 0, sinf(WS.rotXZ), 0,
                 0, 1, 0, 0,
-                -sinf(rotXZ), 0, cosf(rotXZ), 0,
+                -sinf(WS.rotXZ), 0, cosf(WS.rotXZ), 0,
                 0, 0, 0, 1) *
-      glm::mat4(cosf(rotXW), 0, 0, sinf(rotXW),
+      glm::mat4(cosf(WS.rotXW), 0, 0, sinf(WS.rotXW),
                 0, 1, 0, 0,
                 0, 0, 1, 0,
-                -sinf(rotXW), 0, 0, cosf(rotXW)) *
+                -sinf(WS.rotXW), 0, 0, cosf(WS.rotXW)) *
       glm::mat4(1, 0, 0, 0,
-                0, cosf(rotYZ), sinf(rotYZ), 0,
-                0, -sinf(rotYZ), cosf(rotYZ), 0,
+                0, cosf(WS.rotYZ), sinf(WS.rotYZ), 0,
+                0, -sinf(WS.rotYZ), cosf(WS.rotYZ), 0,
                 0, 0, 0, 1) *
       glm::mat4(1, 0, 0, 0,
-                0, cosf(rotYW), 0, sinf(rotYW),
+                0, cosf(WS.rotYW), 0, sinf(WS.rotYW),
                 0, 0, 1, 0,
-                0, -sinf(rotYW), 0, cosf(rotYW)) *
+                0, -sinf(WS.rotYW), 0, cosf(WS.rotYW)) *
       glm::mat4(1, 0, 0, 0,
                 0, 1, 0, 0,
-                0, 0, cosf(rotZW), sinf(rotZW),
-                0, 0, -sinf(rotZW), cosf(rotZW));
+                0, 0, cosf(WS.rotZW), sinf(WS.rotZW),
+                0, 0, -sinf(WS.rotZW), cosf(WS.rotZW));
 
     const size_t vaoSize = sizeof(verts)/sizeof(verts[0]);
     const size_t linesVaoSize = sizeof(linesVerts)/sizeof(linesVerts[0]);
 
     if (WS.displayBlocks) {
-#if 1
-      BlockType &grassBlock = roundGrassBlock;
-      BlockType &sandBlock =  roundSandBlock;
-      BlockType &stoneBlock = roundStoneBlock;
-      BlockType &waterBlock = roundWaterBlock;
-      BlockType &cloudBlock = roundCloudBlock;
-#else
-      BlockType &grassBlock = squareGrassBlock;
-      BlockType &sandBlock = squareSandBlock;
-      BlockType &stoneBlock = squareStoneBlock;
-      BlockType &waterBlock = squareWaterBlock;
-#endif
+      BlockType *grassBlock;
+      BlockType *sandBlock;
+      BlockType *stoneBlock;
+      BlockType *waterBlock;
+      // BlockType *cloudBlock;
+
+
+      if (!WS.squareWorld) {
+        grassBlock = &roundGrassBlock;
+        sandBlock = &roundSandBlock;
+        stoneBlock = &roundStoneBlock;
+        waterBlock = &roundWaterBlock;
+        // cloudBlock = &roundCloudBlock;
+      } else {
+        grassBlock = &squareGrassBlock;
+        sandBlock = &squareSandBlock;
+        stoneBlock = &squareStoneBlock;
+        waterBlock = &squareWaterBlock;
+      }
 
       mainShader.activate();
       // Sending data to the GPU
       glUniform4fv(eyeLoc, 1, glm::value_ptr(WS.eye)); GL_ERR_CHK;
       glUniform4fv(forwardLoc, 1, glm::value_ptr(WS.forward)); GL_ERR_CHK;
       glUniform1f(recipTanViewAngleLoc, invTanViewAngle); GL_ERR_CHK;
+      glUniform1f(offsetLoc, WS.squareWorld ? 7.5 : 15.5); GL_ERR_CHK;
       glUniformMatrix4fv(worldToEyeMat4DLoc, 1, GL_FALSE, glm::value_ptr(worldToEyeMat4D)); GL_ERR_CHK;
       glUniformMatrix4fv(projMat3DLoc, 1, GL_FALSE, glm::value_ptr(projMat3D)); GL_ERR_CHK;
       glUniformMatrix4fv(srmLoc, 1, GL_FALSE, glm::value_ptr(srm)); GL_ERR_CHK;
@@ -481,16 +514,16 @@ int main(int argc, char **argv)
       glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
       // Bind & draw the different block types
-      grassBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
-      glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, grassBlock.count);
+      grassBlock->bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+      glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, grassBlock->count);
       GL_ERR_CHK;
 
-      sandBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
-      glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, sandBlock.count);
+      sandBlock->bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+      glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, sandBlock->count);
       GL_ERR_CHK;
 
-      stoneBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
-      glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, stoneBlock.count);
+      stoneBlock->bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+      glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, stoneBlock->count);
       GL_ERR_CHK;
 
       // Render the water blocks to a texture, using the depth values from the rendering
@@ -499,9 +532,11 @@ int main(int argc, char **argv)
       glClearColor(0,0,0,0);
       glClear( GL_COLOR_BUFFER_BIT ); // Don't clear depth, so we can use it to cull!
 
-      waterBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
-      glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, waterBlock.count);
-      GL_ERR_CHK;
+      if (!WS.hideWater) {
+        waterBlock->bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, waterBlock->count);
+        GL_ERR_CHK;
+      }
 
       // This is commented out because the clouds look kinda bad
       // cloudBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
