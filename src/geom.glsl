@@ -6,6 +6,9 @@ layout(triangle_strip, max_vertices=3) out;
 in vec4 vcolor[];
 out vec4 color;
 
+in vec3 vpos3[];
+out vec3 pos3;
+
 out vec3 normal;
 
 void main()
@@ -44,6 +47,7 @@ void main()
      // copy attributes
     gl_Position = gl_in[i].gl_Position;
     color = vcolor[i];
+    pos3 = vpos3[i];
 
     // done with the vertex
     EmitVertex();

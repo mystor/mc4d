@@ -9,9 +9,9 @@
 class ShaderProgram {
   void validateShader(GLuint shader);
 
+public:
   void validateProgram();
 
-public:
   GLuint progId;
 
   ShaderProgram() {

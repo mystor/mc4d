@@ -5,7 +5,6 @@ layout (location = 1) in vec4 color;
 
 // The location of the eye in space
 uniform vec4 eye;
-uniform vec4 forward;
 
 // The worldToEyeMat4D, used by the 4d => 3d projection
 uniform mat4 worldToEyeMat4D;
@@ -27,6 +26,7 @@ uniform mat4 srm;
 
 // Passing the color to the geometry shader
 out vec4 vcolor;
+out vec3 vpos3;
 
 // This function accepts some pre-computed values which will help speed stuff up
 vec4 projectTo3D()
@@ -57,4 +57,5 @@ void main() {
 
   // Outputs
   gl_Position = pos2;
+  vpos3 = pos3.xyz;
 }

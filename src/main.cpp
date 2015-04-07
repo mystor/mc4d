@@ -6,6 +6,7 @@
 #include "roundworld.h"
 #include "project.h"
 #include "blocktype.h"
+#include "skybox.h"
 
 #include "shaders.h"
 
@@ -300,6 +301,10 @@ int main(int argc, char **argv)
   glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
   GL_ERR_CHK;
 
+  // Create a skybox
+  Skybox sb;
+  GL_ERR_CHK;
+
   // Create an initialize the GPU program which does basically all
   // of the actual rendering for the program
   ShaderProgram mainShader;
@@ -336,13 +341,24 @@ int main(int argc, char **argv)
   GLuint recipTanViewAngleLoc = mainShader.uniformLocation("recipTanViewAngle");
   GLuint projMat3DLoc = mainShader.uniformLocation("projMat3D");
   GLuint eyeLoc = mainShader.uniformLocation("eye");
-  GLuint forwardLoc = mainShader.uniformLocation("forward");
   GLuint hypercubeLoc = mainShader.uniformLocation("hypercube");
   GLuint hcCountLoc = mainShader.uniformLocation("hcCount");
   GLuint hcIndicatorLoc = mainShader.uniformLocation("hcIndicator");
   GLuint faceTexLoc = mainShader.uniformLocation("faceTex");
   GLuint srmLoc = mainShader.uniformLocation("srm");
   GLuint offsetLoc = mainShader.uniformLocation("offset");
+  GLuint skyboxLoc = mainShader.uniformLocation("skybox");
+  std::cout << "worldToEyeMat4DLoc = " << worldToEyeMat4DLoc << std::endl;
+  std::cout << "recipTanViewAngleLoc = " << recipTanViewAngleLoc << std::endl;
+  std::cout << "projMat3DLoc = " << projMat3DLoc << std::endl;
+  std::cout << "eyeLoc = " << eyeLoc << std::endl;
+  std::cout << "hypercubeLoc = " << hypercubeLoc << std::endl;
+  std::cout << "hcCountLoc = " << hcCountLoc << std::endl;
+  std::cout << "hcIndicatorLoc = " << hcIndicatorLoc << std::endl;
+  std::cout << "faceTexLoc = " << faceTexLoc << std::endl;
+  std::cout << "srmLoc = " << srmLoc << std::endl;
+  std::cout << "offsetLoc = " << offsetLoc << std::endl;
+  std::cout << "skyboxLoc = " << skyboxLoc << std::endl;
 
   // Wireframe Shader locations
   GLuint wire_worldToEyeMat4DLoc = wireShader.uniformLocation("worldToEyeMat4D");
@@ -378,6 +394,10 @@ int main(int argc, char **argv)
   glUniform1i(faceTexLoc, 2);
   glActiveTexture(GL_TEXTURE0 + 2);
   glBindTexture(GL_TEXTURE_2D, faceTex);
+
+  glUniform1i(skyboxLoc, 3); // MAGIC NUMBER (from skybox.cpp)
+  glActiveTexture(GL_TEXTURE0 + 3);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, sb.texture);
 
 #define DUMP(a) std::cout << #a << " = " << a.x << ",\t" << a.y << ",\t" << a.z << ",\t" << a.w << "\n"
 
@@ -496,7 +516,6 @@ int main(int argc, char **argv)
       mainShader.activate();
       // Sending data to the GPU
       glUniform4fv(eyeLoc, 1, glm::value_ptr(WS.eye)); GL_ERR_CHK;
-      glUniform4fv(forwardLoc, 1, glm::value_ptr(WS.forward)); GL_ERR_CHK;
       glUniform1f(recipTanViewAngleLoc, invTanViewAngle); GL_ERR_CHK;
       glUniform1f(offsetLoc, WS.squareWorld ? 7.5 : 15.5); GL_ERR_CHK;
       glUniformMatrix4fv(worldToEyeMat4DLoc, 1, GL_FALSE, glm::value_ptr(worldToEyeMat4D)); GL_ERR_CHK;
