@@ -10,7 +10,8 @@ mc4d: src/shaders.h $(FILES)
 
 # Ensure that the shader headers have been built before the main program is compiled
 # If we don't do this, then after cleaning the shaders won't exist and building will fail
-src/shaders.h: src/vertShader.h src/fragShader.h src/geomShader.h src/blendvertShader.h src/blendfragShader.h src/wirevertShader.h src/wirefragShader.h
+src/shaders.h: src/vertShader.h src/fragShader.h src/geomShader.h src/blendvertShader.h src/blendfragShader.h src/wirevertShader.h src/wirefragShader.h src/sbvertShader.h src/sbfragShader.h
+
 
 # Pull in generated dependency information for existing .o files
 -include $(FILES:.o=.d)
@@ -68,3 +69,13 @@ src/wirefragShader.h: src/wirefrag.glsl
 	echo "char wirefragGlsl[] = {" > src/wirefragShader.h
 	xxd -i < src/wirefrag.glsl >> src/wirefragShader.h
 	echo ", 0x00\n};" >> src/wirefragShader.h
+
+src/sbvertShader.h: src/sbvert.glsl
+	echo "char sbvertGlsl[] = {" > src/sbvertShader.h
+	xxd -i < src/sbvert.glsl >> src/sbvertShader.h
+	echo ", 0x00\n};" >> src/sbvertShader.h
+
+src/sbfragShader.h: src/sbfrag.glsl
+	echo "char sbfragGlsl[] = {" > src/sbfragShader.h
+	xxd -i < src/sbfrag.glsl >> src/sbfragShader.h
+	echo ", 0x00\n};" >> src/sbfragShader.h

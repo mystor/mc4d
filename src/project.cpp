@@ -1,6 +1,7 @@
 #include "project.h"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 
 using namespace glm;
 
@@ -44,7 +45,7 @@ float calcInvTanViewAngle(float viewAngle) {
 }
 
 
-mat4 calcProjMat3D(float viewAngle, float aspectRatio, bool orthoProj) {
+mat4 calcProjMat3D(float viewAngle, float aspectRatio, float rot3X, float rot3Y, bool orthoProj) {
   mat4 projection, view;
   if (orthoProj) {
     projection = ortho(-1, 1,
@@ -59,7 +60,7 @@ mat4 calcProjMat3D(float viewAngle, float aspectRatio, bool orthoProj) {
                              aspectRatio,
                              0.1f,
                              100.0f);
-    view = lookAt(vec3(4, 0, 0),
+    view = lookAt(rotateY(rotateZ(vec3(2, 0, 0), rot3Y), rot3X),
                   vec3(0, 0, 0),
                   vec3(0, -1, 0));
   }

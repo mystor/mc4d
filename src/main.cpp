@@ -31,8 +31,11 @@ static struct WorldState {
   double rotXY, rotXZ, rotXW;
   double rotYZ, rotYW, rotZW;
 
+  double rot3X, rot3Y;
+
   // Rotate automatically
   bool autorotXY, autorotXZ, autorotXW, autorotYZ, autorotYW, autorotZW;
+  bool autorot3X, autorot3Y;
 
   // Project using orthographic rather than projection
   // NOTE(michael): Disabled
@@ -443,6 +446,15 @@ int main(int argc, char **argv)
       ADJUST(R, F, rotYZ);
       ADJUST(T, G, rotYW);
       ADJUST(Y, H, rotZW);
+
+      ADJUST(DOWN, UP, rot3Y);
+      ADJUST(LEFT, RIGHT, rot3X);
+
+
+      if (WS.rot3Y > M_PI / 4) { WS.rot3Y = M_PI / 4; }
+      if (WS.rot3Y < -M_PI / 4) { WS.rot3Y = -M_PI / 4; }
+      std::cout << WS.rot3Y << " " << WS.rot3X << "\n";
+
 #undef ADJUST
 
       const float ZOOM_SPEED = 5.00;
@@ -460,7 +472,7 @@ int main(int argc, char **argv)
     float invTanViewAngle = calcInvTanViewAngle(WS.viewAngle);
 
     // Value required for the 3D->2D projection
-    glm::mat4 projMat3D = calcProjMat3D(WS.viewAngle, ratio, WS.orthoProj);
+    glm::mat4 projMat3D = calcProjMat3D(WS.viewAngle, ratio, WS.rot3X, WS.rot3Y, WS.orthoProj);
 
     // Create the scene rotation matrix
     glm::mat4 srm =
@@ -544,6 +556,17 @@ int main(int argc, char **argv)
       stoneBlock->bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
       glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, stoneBlock->count);
       GL_ERR_CHK;
+
+      // Draw the skybox
+#if 1
+      sb.draw(projMat3D);
+#endif
+
+      // Re-activate the main shader
+      mainShader.activate();
+      // Bind the tesseract VAO
+      glBindVertexArray(VAO);
+
 
       // Render the water blocks to a texture, using the depth values from the rendering
       // of solid blocks to cull any obscured water surfaces.
