@@ -451,9 +451,11 @@ int main(int argc, char **argv)
       ADJUST(LEFT, RIGHT, rot3X);
 
 
-      if (WS.rot3Y > M_PI / 4) { WS.rot3Y = M_PI / 4; }
-      if (WS.rot3Y < -M_PI / 4) { WS.rot3Y = -M_PI / 4; }
-      std::cout << WS.rot3Y << " " << WS.rot3X << "\n";
+      // Limit vertical rotation in 3-space to be within limit rads
+      // the M_PI/16 rads are to prevent glitchiness around 90 degrees
+      double limit = M_PI / 2 - M_PI / 16;
+      if (WS.rot3Y > limit) { WS.rot3Y = limit; }
+      if (WS.rot3Y < -limit) { WS.rot3Y = -limit; }
 
 #undef ADJUST
 
