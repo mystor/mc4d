@@ -13,6 +13,7 @@
 #include "gl.h"
 
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 
 #include <stdlib.h>
 #include <iostream>
@@ -33,20 +34,20 @@ static struct WorldState {
 
   double rot3X, rot3Y;
 
+  // Zoom
+  double zoom;
+
   // Rotate automatically
   bool autorotXY, autorotXZ, autorotXW, autorotYZ, autorotYW, autorotZW;
   bool autorot3X, autorot3Y;
 
-  // Project using orthographic rather than projection
-  // NOTE(michael): Disabled
-  bool orthoProj;
-
   // Display the scene
   bool displayBlocks, displayWireframe, hideWater;
 
+  // Which version of the world to display (square or round)
   bool squareWorld;
 
-
+  // Framebuffers for solid & water blocks
   GLuint solidBlocksFB, waterBlocksFB;
   GLuint solidBlocksColorTex, waterBlocksColorTex;
   GLuint blocksDepthTex;
@@ -351,17 +352,7 @@ int main(int argc, char **argv)
   GLuint srmLoc = mainShader.uniformLocation("srm");
   GLuint offsetLoc = mainShader.uniformLocation("offset");
   GLuint skyboxLoc = mainShader.uniformLocation("skybox");
-  std::cout << "worldToEyeMat4DLoc = " << worldToEyeMat4DLoc << std::endl;
-  std::cout << "recipTanViewAngleLoc = " << recipTanViewAngleLoc << std::endl;
-  std::cout << "projMat3DLoc = " << projMat3DLoc << std::endl;
-  std::cout << "eyeLoc = " << eyeLoc << std::endl;
-  std::cout << "hypercubeLoc = " << hypercubeLoc << std::endl;
-  std::cout << "hcCountLoc = " << hcCountLoc << std::endl;
-  std::cout << "hcIndicatorLoc = " << hcIndicatorLoc << std::endl;
-  std::cout << "faceTexLoc = " << faceTexLoc << std::endl;
-  std::cout << "srmLoc = " << srmLoc << std::endl;
-  std::cout << "offsetLoc = " << offsetLoc << std::endl;
-  std::cout << "skyboxLoc = " << skyboxLoc << std::endl;
+  GLuint eyePos3Loc = mainShader.uniformLocation("eyePos3");
 
   // Wireframe Shader locations
   GLuint wire_worldToEyeMat4DLoc = wireShader.uniformLocation("worldToEyeMat4D");
@@ -440,6 +431,7 @@ int main(int argc, char **argv)
         WS.var += SPEED * delta;\
       }
 
+      // 4-space camera motion
       ADJUST(Q, A, rotXY);
       ADJUST(W, S, rotXZ);
       ADJUST(E, D, rotXW);
@@ -447,6 +439,7 @@ int main(int argc, char **argv)
       ADJUST(T, G, rotYW);
       ADJUST(Y, H, rotZW);
 
+      // 3-space camera motion
       ADJUST(DOWN, UP, rot3Y);
       ADJUST(LEFT, RIGHT, rot3X);
 
@@ -459,13 +452,13 @@ int main(int argc, char **argv)
 
 #undef ADJUST
 
-      const float ZOOM_SPEED = 5.00;
+      const float ZOOM_SPEED = 2.00;
 
-      if (glfwGetKey(window, GLFW_KEY_EQUAL) && WS.eye.x < -16) {
-        WS.eye.x += ZOOM_SPEED * delta;
+      if (glfwGetKey(window, GLFW_KEY_EQUAL) && WS.zoom < 1) {
+        WS.zoom += ZOOM_SPEED * delta;
       }
-      if (glfwGetKey(window, GLFW_KEY_MINUS) && WS.eye.x > -50) {
-        WS.eye.x -= ZOOM_SPEED * delta;
+      if (glfwGetKey(window, GLFW_KEY_MINUS) && WS.zoom > -5) {
+        WS.zoom -= ZOOM_SPEED * delta;
       }
     }
 
@@ -473,8 +466,13 @@ int main(int argc, char **argv)
     glm::mat4 worldToEyeMat4D = calcWorldToEyeMat4D(WS.up, WS.over, WS.forward);
     float invTanViewAngle = calcInvTanViewAngle(WS.viewAngle);
 
+    // Rotate the eye position in 3-space
+    glm::vec3 eyePos3 = rotateY(rotateZ(glm::vec3(2 - WS.zoom, 0, 0),
+                                        (float) WS.rot3Y),
+                                (float) WS.rot3X);
+
     // Value required for the 3D->2D projection
-    glm::mat4 projMat3D = calcProjMat3D(WS.viewAngle, ratio, WS.rot3X, WS.rot3Y, WS.orthoProj);
+    glm::mat4 projMat3D = calcProjMat3D(WS.viewAngle, ratio, eyePos3);
 
     // Create the scene rotation matrix
     glm::mat4 srm =
@@ -530,6 +528,7 @@ int main(int argc, char **argv)
       mainShader.activate();
       // Sending data to the GPU
       glUniform4fv(eyeLoc, 1, glm::value_ptr(WS.eye)); GL_ERR_CHK;
+      glUniform3fv(eyePos3Loc, 1, glm::value_ptr(eyePos3)); GL_ERR_CHK;
       glUniform1f(recipTanViewAngleLoc, invTanViewAngle); GL_ERR_CHK;
       glUniform1f(offsetLoc, WS.squareWorld ? 7.5 : 15.5); GL_ERR_CHK;
       glUniformMatrix4fv(worldToEyeMat4DLoc, 1, GL_FALSE, glm::value_ptr(worldToEyeMat4D)); GL_ERR_CHK;
@@ -560,15 +559,11 @@ int main(int argc, char **argv)
       GL_ERR_CHK;
 
       // Draw the skybox
-#if 1
       sb.draw(projMat3D);
-#endif
 
-      // Re-activate the main shader
+      // Re-activate the main shader and re-bind the tesseract VAO
       mainShader.activate();
-      // Bind the tesseract VAO
       glBindVertexArray(VAO);
-
 
       // Render the water blocks to a texture, using the depth values from the rendering
       // of solid blocks to cull any obscured water surfaces.
@@ -581,11 +576,6 @@ int main(int argc, char **argv)
         glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, waterBlock->count);
         GL_ERR_CHK;
       }
-
-      // This is commented out because the clouds look kinda bad
-      // cloudBlock.bind(hypercubeLoc, hcCountLoc, hcIndicatorLoc);
-      // glDrawArraysInstanced(GL_TRIANGLES, 0, vaoSize, cloudBlock.count);
-      // GL_ERR_CHK;
 
       // Render to the screen, binding the solid and water blocks to a shader, and blending
       // them together before outputting to the screen.

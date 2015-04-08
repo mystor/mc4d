@@ -1,7 +1,6 @@
 #version 410
 
 const vec3 lightDir = vec3(0.3, 1, 0);
-const vec3 eyePos3 = vec3(4, 0, 0);
 
 // The points in space
 uniform sampler2D faceTex;
@@ -11,6 +10,9 @@ uniform float hcIndicator;
 
 // The sky
 uniform samplerCube skybox;
+
+// the 3d eye position
+uniform vec3 eyePos3;
 
 in vec4 color;
 in vec3 normal;
