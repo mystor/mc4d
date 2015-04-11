@@ -5,6 +5,9 @@
 
 using namespace glm;
 
+
+// Definition of a 4d cross product from Steve Hollasch's thesis
+// http://steve.hollasch.net/thesis/chapter2.html
 vec4 cross4(vec4 a, vec4 b, vec4 c) {
   float A, B, C, D, E, F;       // Intermediate aalues
 
@@ -23,6 +26,8 @@ vec4 cross4(vec4 a, vec4 b, vec4 c) {
               - (c.x * D) + (c.y * B) - (c.z * A));
 }
 
+// All 4d-3d projection code is adapted from steve hollasch's thesis
+// http://steve.hollasch.net/thesis/chapter4.html
 mat4 calcWorldToEyeMat4D(vec4 up, vec4 over, vec4 forward) {
   vec4 Wa, Wb, Wc, Wd;
 

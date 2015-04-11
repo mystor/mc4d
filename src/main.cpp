@@ -118,6 +118,8 @@ static void resizeCallback(GLFWwindow *, int width, int height)
   GL_ERR_CHK;
 }
 
+// Framebuffer generation code adapted from example code.
+// https://www.opengl.org/wiki/Framebuffer_Object_Examples#Color_texture.2C_Depth_texture
 static void generateFrameBuffer(GLuint &color_tex, GLuint &depth_tex, GLuint &fb, int width, int height, bool genDepth)
 {
   // Create the color texture

@@ -1,6 +1,5 @@
 #include "tesseract.h"
 
-#include "more.h"
 #include "config.h"
 
 #include <array>
