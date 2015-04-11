@@ -54,7 +54,7 @@ The problem of how to render these 3d objects took quite a while to resolve. The
 
 Unfortunately, the number of texture accesses per pixel which were required in order to get this to work was too high. With my text 3d volume, the program was running at only about 30fps, and with an emulated 4d texture, the workload would increase by double per texture lookup. I also experimented with using distance fields to render the scene instead, but ran into resolution problems.
 
---- IMAGE OF RAYTRACER HERE ---
+![raytracer](screenshots/wip0.png)
 
 As I was having severe performance problems with the raytracer, I switched to using standard 3d rendering techniques with faces. I generated the vertices for each of the 24 faces on a tesseract (the faces of the 8 bounding cubes, minus the shared faces). I then used the projection math from [Steve Hollasch's 1991 Master's Thesis](http://steve.hollasch.net/thesis/index.html), which is an extension of the standard 3d projection math into 4d space.
 
