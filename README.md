@@ -93,8 +93,8 @@ I also added many more rendering features to make the environment nicer to look 
 
 Not all of the code in this project is 100% mine. This section acts as a place for me to credit the resources which I used to create mc4d.
 
-    GLFW starter code:
-      Used to set up the event loop and an OpenGl 4.1 context.
+    GLFW starter code / documentation:
+      Used to set up the event loop and an OpenGl 4.1 context, as well as for keyboard input.
       http://www.glfw.org/docs/latest/quick.html#quick_example
 
     4d cross product and 4d to 3d projection math:
@@ -121,6 +121,10 @@ Not all of the code in this project is 100% mine. This section acts as a place f
     4D-Bresenham Line Drawing Algorithm:
       Algorithm not used in final product, but used in raytracer.
       https://sites.google.com/site/proyectosroboticos/bresenham-6d
+
+    OpenGL Wiki:
+      Lots of documentation and information regarding the OpenGL apis.
+      https://www.opengl.org/wiki
 
     GPU Program Management Code:
       Adapted from code provided for assignment 1.
