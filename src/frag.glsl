@@ -26,7 +26,7 @@ void main()
   vec3 nNormal = abs(normal);
   fragColour = vec4(0.5, 0.5, 0.5, 1) -
     // This is quite possibly the worst implementation of phong diffuse shading ever
-    vec4(0.5, 0.5, 0.5, 0) * (texture(faceTex, color.rg).r + dot(nNormal, lightDir));
+    vec4(0.3, 0.3, 0.3, 0) * (texture(faceTex, color.rg).r + 0.1 * dot(nNormal, lightDir));
 
   // Yeah, this is awful, but I don't have to maintain this program, and this is
   // the fastest & easiest way to get it working, so yeah.

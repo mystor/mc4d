@@ -3,6 +3,9 @@
 layout(triangles) in;
 layout(triangle_strip, max_vertices=3) out;
 
+// the 3d eye position
+uniform vec3 eyePos3;
+
 in vec4 vcolor[];
 out vec4 color;
 
@@ -14,12 +17,12 @@ out vec3 normal;
 void main()
 {
   // Calculate a normal
-  vec3 a = gl_in[1].gl_Position.xyz - gl_in[0].gl_Position.xyz;
-  vec3 b = gl_in[2].gl_Position.xyz - gl_in[0].gl_Position.xyz;
+  vec3 a = vpos3[1] - vpos3[0];
+  vec3 b = vpos3[2] - vpos3[0];
   normal = normalize(cross(a, b));
 
   // Ensure it is pointing toward the camera
-  if (dot(normal, gl_in[0].gl_Position.xyz) > 0) {
+  if (dot(normal, pos3 - eyePos3) > 0) {
     normal = -normal;
   }
 

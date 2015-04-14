@@ -561,7 +561,7 @@ int main(int argc, char **argv)
       GL_ERR_CHK;
 
       // Draw the skybox
-      sb.draw(projMat3D);
+      sb.draw(projMat3D, eyePos3);
 
       // Re-activate the main shader and re-bind the tesseract VAO
       mainShader.activate();

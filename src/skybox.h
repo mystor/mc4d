@@ -65,7 +65,7 @@ struct Skybox {
   GLuint VAO, VBO;
 
   ShaderProgram sp;
-  GLuint sbLoc, MVPLoc;
+  GLuint sbLoc, MVPLoc, eye3Loc;
 
   Skybox() {
     glGenTextures(1, &texture);
@@ -106,13 +106,15 @@ struct Skybox {
 
     sbLoc = sp.uniformLocation("sb");
     MVPLoc = sp.uniformLocation("MVP");
+    eye3Loc = sp.uniformLocation("eye3");
   }
 
-  void draw(glm::mat4 MVP) {
+  void draw(glm::mat4 MVP, glm::vec3 eye3) {
     glBindVertexArray(VAO);
 
     sp.activate();
     glUniformMatrix4fv(MVPLoc, 1, GL_FALSE, glm::value_ptr(MVP)); GL_ERR_CHK;
+    glUniform3fv(eye3Loc, 1, glm::value_ptr(eye3)); GL_ERR_CHK;
     glUniform1i(sbLoc, 3); GL_ERR_CHK;
 
     glDrawArrays(GL_TRIANGLES, 0, sizeof(skybox_verts)/sizeof(skybox_verts[0]));
